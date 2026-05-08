@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint } from "firebase/firestore";
 
-// Firebase Configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,16 +11,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
 
 export { auth, db, app };
 
-// Firestore Helpers
 export const firebaseHelpers = {
-  // User helpers
   async getUserById(userId: string) {
     const userDoc = await getDoc(doc(db, "users", userId));
     return userDoc.exists() ? { ...userDoc.data(), uid: userId } : null;
@@ -40,7 +36,6 @@ export const firebaseHelpers = {
     await addDoc(collection(db, "users"), { ...userData, uid: userId });
   },
 
-  // Attendance helpers
   async createAttendanceRecord(attendanceData: Record<string, any>) {
     const docRef = await addDoc(collection(db, "attendance"), {
       ...attendanceData,
@@ -60,7 +55,6 @@ export const firebaseHelpers = {
     await updateDoc(doc(db, "attendance", recordId), data);
   },
 
-  // Leave request helpers
   async createLeaveRequest(leaveData: Record<string, any>) {
     const docRef = await addDoc(collection(db, "leaveRequests"), {
       ...leaveData,

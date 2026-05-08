@@ -16,10 +16,8 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch employee attendance metrics
     const fetchMetrics = async () => {
       try {
-        // TODO: Implement metrics calculation from Firestore
         setMetrics({
           totalEmployees: 1,
           presentToday: 1,

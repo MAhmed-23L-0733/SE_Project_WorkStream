@@ -16,10 +16,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch metrics from Firestore
     const fetchMetrics = async () => {
       try {
-        // TODO: Implement metrics calculation from Firestore
         setMetrics({
           totalEmployees: 24,
           presentToday: 20,

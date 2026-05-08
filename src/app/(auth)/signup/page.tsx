@@ -56,13 +56,10 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      // Create user with email and password
       const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
 
-      // Send email verification
       await sendEmailVerification(user);
 
-      // Save profile to Firestore
       await setDoc(doc(db, "users", user.uid), {
         fullName: formData.name,
         email: formData.email,
@@ -74,7 +71,6 @@ export default function SignUpPage() {
       setSuccessMessage("Account created! Check your email to verify your account.");
       setFormData({ name: "", email: "", password: "", confirmPassword: "" });
 
-      // Redirect after 2 seconds
       setTimeout(() => {
         router.push("/login");
       }, 2000);

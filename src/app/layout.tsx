@@ -1,4 +1,4 @@
-import { AuthProvider } from "@/context/AuthContext"; // Ensure this path matches your context file
+import { AuthProvider } from "@/context/AuthContext"; 
 import "./globals.css";
 
 export const metadata = {
