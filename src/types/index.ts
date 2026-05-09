@@ -9,6 +9,7 @@ export interface User {
   createdAt?: string;
   phoneNumber?: string;
   profileImage?: string;
+  authCreated?: boolean;
 }
 
 // Attendance types

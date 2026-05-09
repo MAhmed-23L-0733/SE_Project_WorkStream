@@ -24,6 +24,7 @@ export const Sidebar = () => {
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/employees", label: "Employees" },
+    { href: "/admin/departments", label: "Departments" },
     { href: "/admin/leave-requests", label: "Leave Requests" }
   ];
 

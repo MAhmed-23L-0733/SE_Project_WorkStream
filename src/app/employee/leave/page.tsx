@@ -110,8 +110,8 @@ export default function LeavePage() {
   const executeSubmit = async (daysRequested: number) => {
     try {
       const leaveData: LeaveRequest = {
-        userId: user!.uid,
-        userName: user!.displayName || user!.email || "Unknown",
+        userId: user.uid,
+        userName: user.fullName || user.email || "Unknown",
         startDate: formData.startDate,
         endDate: formData.endDate,
         leaveType: formData.leaveType as LeaveType,
