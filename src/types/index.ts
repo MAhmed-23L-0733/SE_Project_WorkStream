@@ -16,22 +16,16 @@ export interface User {
 export interface AttendanceRecord {
   id?: string;
   userId: string;
-  employeeId: string;
-  checkInTime: any; // Using any for serverTimestamp compatibility in TS
-  checkOutTime?: any;
+  checkInTime: string;
+  checkOutTime?: string;
   location: {
     latitude: number;
     longitude: number;
   };
-  photoUrl?: string;
-  method: "auto" | "manual";
-  distanceMeters?: number;
-  deviceId?: string;
-  verified: boolean;
   status: "present" | "absent" | "late";
   notes?: string;
   date: string;
-  createdAt?: any;
+  createdAt?: string;
 }
 
 // Leave types
@@ -76,18 +70,4 @@ export interface GeolocationCoordinates {
   latitude: number;
   longitude: number;
   accuracy?: number;
-}
-export interface GeofenceSettings {
-  id: string;
-  officeName: string;
-  latitude: number;
-  longitude: number;
-  radius: number; // in meters
-  lastUpdated?: any;
-}
-
-export interface GeofenceEvent {
-  type: "enter" | "exit";
-  timestamp: number;
-  coords: GeolocationCoordinates;
 }
