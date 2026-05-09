@@ -25,8 +25,7 @@ export const Sidebar = () => {
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/employees", label: "Employees" },
     { href: "/admin/departments", label: "Departments" },
-    { href: "/admin/leave-requests", label: "Leave Requests" },
-    { href: "/admin/profile", label: "Profile" }
+    { href: "/admin/leave-requests", label: "Leave Requests" }
   ];
 
   const employeeLinks = [
@@ -42,7 +41,31 @@ export const Sidebar = () => {
       {/* Header */}
       <div className="border-b border-slate-700 p-6">
         <h1 className="text-2xl font-bold">WorkStream</h1>
-        <p className="text-sm text-slate-400 mt-1">Role: {role}</p>
+      </div>
+
+      {/* User Profile Section */}
+      <div className="border-b border-slate-700 p-4">
+        <Link href={role === "admin" ? "/admin/profile" : "/employee/profile"} className="block group">
+          <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors">
+            {(user as any)?.profileImage ? (
+              <img
+                src={(user as any).profileImage}
+                alt={`${(user as any).fullName || "User"}`}
+                className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://via.placeholder.com/48?text=Admin";
+                }}
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <span className="text-lg font-bold">{((user as any)?.fullName?.[0] || "A").toUpperCase()}</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{(user as any)?.fullName || "Admin"}</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -60,7 +83,6 @@ export const Sidebar = () => {
 
       {/* User Info & Logout */}
       <div className="border-t border-slate-700 p-4">
-        <p className="text-sm text-slate-400 mb-4">{user?.email}</p>
         <button
           onClick={handleLogout}
           className="w-full rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 font-medium transition-colors"

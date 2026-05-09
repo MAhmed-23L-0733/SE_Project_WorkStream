@@ -7,6 +7,8 @@ import { auth, db } from "@/lib/firebase";
 
 export interface AuthUser extends User {
   fullName?: string;
+  phoneNumber?: string;
+  profileImage?: string;
 }
 
 export interface AuthContextType {
@@ -35,11 +37,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setUser({ ...currentUser, fullName: userData.fullName });
+            setUser({
+              ...currentUser,
+              fullName: userData.fullName,
+              phoneNumber: userData.phoneNumber,
+              profileImage: userData.profileImage
+            });
             setRole(userData.role);
           } else {
             setUser(currentUser);
-            setRole("employee"); 
+            setRole("employee");
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
