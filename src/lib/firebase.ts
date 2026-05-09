@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
 import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint } from "firebase/firestore";
+import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 
 interface Department {
   id: string;
@@ -21,8 +22,9 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
+const storage = getStorage(app);
 
-export { auth, db, app };
+export { auth, db, storage, app };
 
 export const firebaseHelpers = {
   async getUserById(userId: string) {
@@ -210,5 +212,24 @@ export const firebaseHelpers = {
 
   async deleteDepartment(departmentId: string) {
     await deleteDoc(doc(db, "departments", departmentId));
+  },
+
+  // Settings management
+  async getSettings(settingsId: string) {
+    const docRef = doc(db, "settings", settingsId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data();
+    } else {
+      return null;
+    }
+  },
+
+  // Storage helper
+  async uploadPhoto(userId: string, dataUrl: string): Promise<string> {
+    const fileName = `attendance/${userId}_${Date.now()}.jpg`;
+    const storageRef = ref(storage, fileName);
+    await uploadString(storageRef, dataUrl, 'data_url');
+    return await getDownloadURL(storageRef);
   }
 };

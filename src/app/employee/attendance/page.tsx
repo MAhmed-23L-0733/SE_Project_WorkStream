@@ -80,13 +80,27 @@ export default function AttendancePage() {
                       </span>
                     </div>
                     <div className="text-sm text-slate-600">
-                      <p>Check-in: {new Date(record.checkInTime).toLocaleTimeString()}</p>
+                      <div className="flex justify-between">
+                        <p>Check-in: {new Date(record.checkInTime).toLocaleTimeString()}</p>
+                        {record.method && (
+                          <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">
+                            {record.method} check-in
+                          </span>
+                        )}
+                      </div>
                       {record.checkOutTime && (
                         <p>Check-out: {new Date(record.checkOutTime).toLocaleTimeString()}</p>
                       )}
-                      <p className="mt-2">
-                        Location: {record.location.latitude.toFixed(4)}, {record.location.longitude.toFixed(4)}
-                      </p>
+                      <div className="flex justify-between items-center mt-2">
+                        <p>
+                          Location: {record.location.latitude.toFixed(4)}, {record.location.longitude.toFixed(4)}
+                        </p>
+                        {record.photoUrl && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${record.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {record.verified ? 'Verified ✓' : 'Pending Review'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

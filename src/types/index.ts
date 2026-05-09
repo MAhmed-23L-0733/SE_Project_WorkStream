@@ -25,6 +25,11 @@ export interface AttendanceRecord {
   status: "present" | "absent" | "late";
   notes?: string;
   date: string;
+  photoUrl?: string;
+  method?: "auto" | "manual";
+  distanceMeters?: number;
+  deviceId?: string;
+  verified?: boolean;
   createdAt?: string;
 }
 
