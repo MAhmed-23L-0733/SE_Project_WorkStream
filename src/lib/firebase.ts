@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
-import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint, serverTimestamp } from "firebase/firestore";
 
 interface Department {
   id: string;
@@ -21,8 +22,9 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
+const storage = getStorage(app);
 
-export { auth, db, app };
+export { auth, db, storage, app };
 
 export const firebaseHelpers = {
   async getUserById(userId: string) {
@@ -90,9 +92,25 @@ export const firebaseHelpers = {
   async createAttendanceRecord(attendanceData: Record<string, any>) {
     const docRef = await addDoc(collection(db, "attendance"), {
       ...attendanceData,
-      createdAt: new Date().toISOString()
+      createdAt: serverTimestamp()
     });
     return docRef.id;
+  },
+
+  async getGeofenceSettings() {
+    const q = query(collection(db, "settings"), where("type", "==", "geofence"));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      return { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id };
+    }
+    return null;
+  },
+
+  async updateGeofenceSettings(id: string, data: Record<string, any>) {
+    await updateDoc(doc(db, "settings", id), {
+      ...data,
+      lastUpdated: serverTimestamp()
+    });
   },
 
   async getAttendanceRecords(userId: string, constraints?: QueryConstraint[]) {
@@ -210,5 +228,11 @@ export const firebaseHelpers = {
 
   async deleteDepartment(departmentId: string) {
     await deleteDoc(doc(db, "departments", departmentId));
+  },
+
+  async uploadImage(file: File | Blob, path: string) {
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
   }
 };
