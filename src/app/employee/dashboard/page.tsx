@@ -46,7 +46,7 @@ export default function EmployeeDashboard() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-900">Welcome, {user?.displayName || user?.email}</h1>
+        <h1 className="text-4xl font-bold text-slate-900">Welcome, {user?.fullName || user?.email}</h1>
         <p className="text-slate-600 mt-2">Here&apos;s your attendance overview</p>
       </div>
 

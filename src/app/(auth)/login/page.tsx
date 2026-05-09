@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, firebaseHelpers } from "@/lib/firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,10 +18,40 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // First try to sign in normally
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/");
     } catch (err: any) {
+      // If user not found, check if they exist in Firestore (created by admin)
       if (err.code === "auth/user-not-found") {
+        try {
+          // Check if user exists in Firestore
+          const users = await firebaseHelpers.getAllUsers();
+          const userDoc = users.find((user: any) => user.email === email);
+
+          if (userDoc && !userDoc.authCreated) {
+            // User exists in Firestore but not in Auth - create Auth account
+            try {
+              await createUserWithEmailAndPassword(auth, email, password);
+
+              // Update Firestore to mark auth as created
+              await firebaseHelpers.updateUser(userDoc.uid, { authCreated: true });
+
+              router.push("/");
+              return;
+            } catch (createErr: any) {
+              if (createErr.code === "auth/email-already-in-use") {
+                setError("An account with this email already exists. Please try logging in normally.");
+              } else {
+                setError("Failed to create account. Please contact your administrator.");
+              }
+              return;
+            }
+          }
+        } catch (firestoreErr) {
+          console.error("Error checking Firestore:", firestoreErr);
+        }
+
         setError("No account found with this email. Please sign up.");
       } else if (err.code === "auth/wrong-password") {
         setError("Incorrect password. Please try again.");

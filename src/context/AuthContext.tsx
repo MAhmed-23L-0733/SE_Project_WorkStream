@@ -5,8 +5,12 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
+export interface AuthUser extends User {
+  fullName?: string;
+}
+
 export interface AuthContextType {
-  user: User | null;         
+  user: AuthUser | null;         
   role: string | null;       
   loading: boolean;        
 }
@@ -18,7 +22,7 @@ export const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,17 +31,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(true);
       
       if (currentUser) {
-        setUser(currentUser);
-
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
-            setRole(userDoc.data().role);
+            const userData = userDoc.data();
+            setUser({ ...currentUser, fullName: userData.fullName });
+            setRole(userData.role);
           } else {
+            setUser(currentUser);
             setRole("employee"); 
           }
         } catch (error) {
-          console.error("Error fetching user role:", error);
+          console.error("Error fetching user data:", error);
+          setUser(currentUser);
           setRole(null);
         }
       } else {

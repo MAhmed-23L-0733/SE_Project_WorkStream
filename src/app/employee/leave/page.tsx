@@ -42,7 +42,7 @@ export default function LeavePage() {
     try {
       const leaveData: LeaveRequest = {
         userId: user.uid,
-        userName: user.displayName || user.email || "Unknown",
+        userName: user.fullName || user.email || "Unknown",
         startDate: formData.startDate,
         endDate: formData.endDate,
         leaveType: formData.leaveType as LeaveType,
