@@ -25,7 +25,8 @@ export const Sidebar = () => {
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/employees", label: "Employees" },
     { href: "/admin/departments", label: "Departments" },
-    { href: "/admin/leave-requests", label: "Leave Requests" }
+    { href: "/admin/leave-requests", label: "Leave Requests" },
+    { href: "/admin/profile", label: "Profile" }
   ];
 
   const employeeLinks = [
