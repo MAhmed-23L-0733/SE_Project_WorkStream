@@ -1,87 +1,206 @@
 "use client";
 
-import { useState } from "react";
-import { useLocation } from "@/hooks/useLocation";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { firebaseHelpers } from "@/lib/firebase";
-import { AttendanceRecord } from "@/types";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
-export const GeoCheckIn = () => {
+const OFFICE_LAT = 31.5204; 
+const OFFICE_LNG = 74.3587;
+const MAX_DISTANCE_METERS = 100000; // Change to 999999 for testing from home
+
+export function GeoCheckIn() {
   const { user } = useAuth();
-  const { location, error, loading, getLocation } = useLocation();
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
 
-  const handleCheckIn = async () => {
-    if (!location || !user) return;
+  // Custom UI Confirmation States
+  const [confirmAction, setConfirmAction] = useState<"checkIn" | "checkOut" | null>(null);
+  const [countdown, setCountdown] = useState(5);
 
-    setSubmitting(true);
-    try {
-      const attendanceData: AttendanceRecord = {
-        userId: user.uid,
-        checkInTime: new Date().toISOString(),
-        location: {
-          latitude: location.latitude,
-          longitude: location.longitude
-        },
-        status: "present",
-        date: new Date().toISOString().split("T")[0]
-      };
+  const todayDate = new Date().toLocaleDateString('en-CA');
 
-      await firebaseHelpers.createAttendanceRecord(attendanceData);
-      setIsCheckedIn(true);
-      setMessage("Check-in successful!");
-      setTimeout(() => setMessage(""), 3000);
-    } catch (err) {
-      setMessage("Error checking in. Please try again.");
-    } finally {
-      setSubmitting(false);
+  useEffect(() => {
+    const fetchTodayStatus = async () => {
+      if (!user?.uid) return;
+      try {
+        const recordId = `${user.uid}_${todayDate}`;
+        const docRef = doc(db, "attendance", recordId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setTodayRecord({ id: docSnap.id, ...docSnap.data() });
+        }
+      } catch (error) {
+        console.error("Error fetching today's attendance:", error);
+      }
+    };
+    fetchTodayStatus();
+  }, [user?.uid, todayDate]);
+
+  // Countdown Timer Effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (confirmAction && countdown > 0) {
+      timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     }
+    return () => clearTimeout(timer);
+  }, [confirmAction, countdown]);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
-  return (
-    <div className="bg-white rounded-lg shadow p-6 max-w-md">
-      <h2 className="text-2xl font-bold text-slate-900 mb-4">Daily Check-In</h2>
+  const initiateConfirmation = (actionType: "checkIn" | "checkOut") => {
+    setConfirmAction(actionType);
+    setCountdown(5); // Start the 5-second timer
+    setStatus("Pending confirmation...");
+  };
 
-      {/* Location Status */}
-      <div className="mb-4 p-4 bg-slate-50 rounded-lg">
-        <p className="text-sm font-medium text-slate-700">Location Status</p>
-        {location ? (
-          <p className="text-green-600 mt-1">
-            ✓ Location detected ({location.accuracy?.toFixed(0)}m accuracy)
-          </p>
-        ) : (
-          <p className="text-slate-600 mt-1">
-            {error ? `✗ ${error}` : "No location detected"}
-          </p>
-        )}
-      </div>
+  const executeAction = async () => {
+    if (!confirmAction) return;
+    
+    setLoading(true);
+    setStatus("Locating...");
 
-      {/* Buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={getLocation}
-          disabled={loading || isCheckedIn}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2 rounded-lg transition-colors"
-        >
-          {loading ? "Getting location..." : "Enable Location"}
-        </button>
-        <button
-          onClick={handleCheckIn}
-          disabled={!location || submitting || isCheckedIn}
-          className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-semibold py-2 rounded-lg transition-colors"
-        >
-          {submitting ? "Checking in..." : isCheckedIn ? "Checked In" : "Check In"}
-        </button>
-      </div>
+    if (!navigator.geolocation) {
+      setStatus("Geolocation is not supported by your browser.");
+      setLoading(false);
+      setConfirmAction(null);
+      return;
+    }
 
-      {/* Message */}
-      {message && (
-        <p className={`mt-3 text-sm ${message.includes("successful") ? "text-green-600" : "text-red-600"}`}>
-          {message}
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const distance = calculateDistance(latitude, longitude, OFFICE_LAT, OFFICE_LNG);
+
+        if (distance > MAX_DISTANCE_METERS) {
+          setStatus(`Failed. You are ${Math.round(distance)}m away. Must be within 100m.`);
+          setLoading(false);
+          setConfirmAction(null);
+          return;
+        }
+
+        try {
+          const now = new Date().toISOString();
+          const recordId = `${user?.uid}_${todayDate}`;
+          const recordRef = doc(db, "attendance", recordId);
+          
+          if (confirmAction === "checkIn") {
+            const newRecord = {
+              userId: user?.uid,
+              date: todayDate,
+              checkInTime: now,
+              checkOutTime: null,
+              status: "present", 
+              location: { latitude, longitude }
+            };
+            
+            await setDoc(recordRef, newRecord);
+            setTodayRecord({ id: recordId, ...newRecord });
+            setStatus("Checked in successfully!");
+            
+          } else if (confirmAction === "checkOut" && todayRecord) {
+            await updateDoc(recordRef, { checkOutTime: now });
+            setTodayRecord({ ...todayRecord, checkOutTime: now });
+            setStatus("Checked out successfully!");
+          }
+        } catch (error) {
+          console.error("Attendance error:", error);
+          setStatus("Error saving record.");
+        }
+        setLoading(false);
+        setConfirmAction(null);
+      },
+      (error) => {
+        setStatus("Please allow location permissions.");
+        setLoading(false);
+        setConfirmAction(null);
+      }
+    );
+  };
+
+  let actionUI;
+  
+  if (confirmAction) {
+    // Custom Confirmation UI
+    actionUI = (
+      <div className="flex flex-col gap-3 animate-in fade-in zoom-in duration-200">
+        <p className="text-sm text-slate-700 font-medium text-center bg-orange-50 border border-orange-200 py-2 rounded-lg">
+          {confirmAction === "checkIn" ? "Confirm Check-In?" : "Final Check-Out for today?"}
         </p>
-      )}
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              setConfirmAction(null);
+              setStatus("");
+            }}
+            disabled={loading}
+            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={executeAction}
+            disabled={countdown > 0 || loading}
+            className={`flex-1 font-bold py-3 px-4 rounded-lg transition-all duration-300 ${
+              countdown > 0 
+                ? "bg-slate-200 text-slate-400 cursor-not-allowed" 
+                : confirmAction === "checkIn" 
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200" 
+                  : "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200"
+            }`}
+          >
+            {loading ? "Processing..." : countdown > 0 ? `Wait ${countdown}s` : "Confirm"}
+          </button>
+        </div>
+      </div>
+    );
+  } else if (!todayRecord) {
+    actionUI = (
+      <button 
+        onClick={() => initiateConfirmation("checkIn")} 
+        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+      >
+        Check In
+      </button>
+    );
+  } else if (todayRecord && !todayRecord.checkOutTime) {
+    actionUI = (
+      <button 
+        onClick={() => initiateConfirmation("checkOut")} 
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+      >
+        Check Out
+      </button>
+    );
+  } else {
+    actionUI = (
+      <div className="w-full bg-slate-100 text-slate-500 font-bold py-3 px-4 rounded-lg text-center border border-slate-200">
+        Attendance Completed Today
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 border border-slate-200">
+      <h2 className="text-xl font-bold text-slate-900 mb-4">Daily Check-In</h2>
+      <div className="bg-slate-50 p-4 rounded-lg mb-6 border border-slate-100">
+        <p className="text-sm text-slate-500 mb-1">Location Status</p>
+        <p className="font-medium text-slate-800">
+          {status || "Ready to verify location"}
+        </p>
+      </div>
+      {actionUI}
     </div>
   );
-};
+}

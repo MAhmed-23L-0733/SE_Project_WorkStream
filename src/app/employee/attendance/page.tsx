@@ -16,7 +16,11 @@ export default function AttendancePage() {
       try {
         if (user?.uid) {
           const attendance = await firebaseHelpers.getAttendanceRecords(user.uid);
-          setRecords(attendance as AttendanceRecord[]);
+          // Sort newest first
+          const sorted = (attendance as AttendanceRecord[]).sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          setRecords(sorted);
         }
       } catch (error) {
         console.error("Error fetching attendance records:", error);
@@ -80,9 +84,9 @@ export default function AttendancePage() {
                       </span>
                     </div>
                     <div className="text-sm text-slate-600">
-                      <p>Check-in: {new Date(record.checkInTime).toLocaleTimeString()}</p>
+                      <p>Check-in: {new Date(record.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                       {record.checkOutTime && (
-                        <p>Check-out: {new Date(record.checkOutTime).toLocaleTimeString()}</p>
+                        <p>Check-out: {new Date(record.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                       )}
                       <p className="mt-2">
                         Location: {record.location.latitude.toFixed(4)}, {record.location.longitude.toFixed(4)}

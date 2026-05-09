@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -57,6 +57,10 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+
+      await updateProfile(user, {
+        displayName: formData.name
+      });
 
       await sendEmailVerification(user);
 
