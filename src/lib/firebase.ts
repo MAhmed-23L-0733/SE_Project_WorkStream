@@ -209,6 +209,29 @@ export const firebaseHelpers = {
   },
 
   async deleteDepartment(departmentId: string) {
+    // First, get the department details to know the name
+    const departmentDoc = await getDoc(doc(db, "departments", departmentId));
+    if (!departmentDoc.exists()) {
+      throw new Error("Department not found");
+    }
+    const departmentData = departmentDoc.data();
+    const departmentName = departmentData.name;
+
+    // Find all employees in this department and reset their department and position
+    const usersQuery = query(collection(db, "users"), where("department", "==", departmentName));
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    const updatePromises = usersSnapshot.docs.map(userDoc => 
+      updateDoc(doc(db, "users", userDoc.id), {
+        department: null,
+        position: null
+      })
+    );
+
+    // Wait for all employee updates to complete
+    await Promise.all(updatePromises);
+
+    // Then delete the department
     await deleteDoc(doc(db, "departments", departmentId));
   }
 };

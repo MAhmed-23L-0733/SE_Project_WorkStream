@@ -17,6 +17,10 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: ""
@@ -41,6 +45,12 @@ export default function DepartmentsPage() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = window.setTimeout(() => setToastMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const handleEdit = (department: Department) => {
     setSelectedDepartment(department);
@@ -78,15 +88,31 @@ export default function DepartmentsPage() {
     }
   };
 
-  const handleDelete = async (departmentId: string) => {
-    if (confirm("Are you sure you want to delete this department?")) {
-      try {
-        await firebaseHelpers.deleteDepartment(departmentId);
-        setDepartments(departments.filter(dept => dept.id !== departmentId));
-      } catch (error) {
-        console.error("Error deleting department:", error);
-      }
+  const handleDelete = (department: Department) => {
+    setDepartmentToDelete(department);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!departmentToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await firebaseHelpers.deleteDepartment(departmentToDelete.id);
+      setDepartments(departments.filter(dept => dept.id !== departmentToDelete.id));
+      setIsDeleteModalOpen(false);
+      setDepartmentToDelete(null);
+      setToastMessage("Department deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting department:", error);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setDepartmentToDelete(null);
   };
 
   const handleCloseModal = () => {
@@ -105,6 +131,11 @@ export default function DepartmentsPage() {
 
   return (
     <div className="p-8">
+      {toastMessage && (
+        <div className="fixed right-6 top-6 z-50 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          {toastMessage}
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-slate-900">Departments</h1>
         <p className="text-slate-600 mt-2">Manage all departments in the system</p>
@@ -151,7 +182,7 @@ export default function DepartmentsPage() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(department.id)}
+                          onClick={() => handleDelete(department)}
                           className="text-red-600 hover:text-red-700 font-medium"
                         >
                           Delete
@@ -168,7 +199,14 @@ export default function DepartmentsPage() {
 
       {/* Department Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseModal();
+            }
+          }}
+        >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h2 className="text-xl font-semibold text-slate-900 mb-4">
@@ -215,6 +253,46 @@ export default function DepartmentsPage() {
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md"
                 >
                   {selectedDepartment ? "Update Department" : "Add Department"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && departmentToDelete && (
+        <div 
+          className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              cancelDelete();
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-slate-900 mb-2">
+                Delete Department?
+              </h2>
+              <p className="text-slate-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold">{departmentToDelete.name}</span>? This action cannot be undone and will unassign all employees from this department.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md disabled:bg-red-400"
+                >
+                  {isDeleting ? "Deleting..." : "Delete Department"}
                 </button>
               </div>
             </div>
