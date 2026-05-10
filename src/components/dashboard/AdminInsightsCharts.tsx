@@ -24,14 +24,17 @@ interface AdminInsightsChartsProps {
   departmentHeadcount: DepartmentHeadcount[];
 }
 
+const DEPT_COLORS = [
+  "#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"
+];
+
 export const AdminInsightsCharts = ({
   attendanceTrend,
   leaveDistribution,
-  departmentHeadcount
+  departmentHeadcount,
 }: AdminInsightsChartsProps) => {
-  const maxDepartmentCount = Math.max(...departmentHeadcount.map((item) => item.count), 1);
-  const leaveTotal =
-    leaveDistribution.pending + leaveDistribution.approved + leaveDistribution.rejected;
+  const maxDepartmentCount = Math.max(...departmentHeadcount.map((d) => d.count), 1);
+  const leaveTotal = leaveDistribution.pending + leaveDistribution.approved + leaveDistribution.rejected;
 
   const pendingPct = leaveTotal > 0 ? (leaveDistribution.pending / leaveTotal) * 100 : 0;
   const approvedPct = leaveTotal > 0 ? (leaveDistribution.approved / leaveTotal) * 100 : 0;
@@ -39,122 +42,432 @@ export const AdminInsightsCharts = ({
   const chartPoints = attendanceTrend
     .map((point, index) => {
       const x = (index / Math.max(attendanceTrend.length - 1, 1)) * 300 + 10;
-      const y = 120 - (point.attendanceRate / 100) * 100;
+      const y = 110 - (point.attendanceRate / 100) * 90;
       return `${x},${y}`;
     })
     .join(" ");
 
+  const maxRate = Math.max(...attendanceTrend.map((p) => p.attendanceRate), 1);
+
   return (
-    <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">7-Day Attendance Trend</h2>
-            <p className="text-sm text-slate-500">Present and late check-ins as % of total staff</p>
-          </div>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            Last 7 Days
-          </span>
-        </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-        <div className="rounded-lg bg-slate-50 p-3">
-          <svg viewBox="0 0 320 140" className="h-44 w-full" role="img" aria-label="attendance trend chart">
-            <defs>
-              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <line x1="10" y1="120" x2="310" y2="120" stroke="#CBD5E1" strokeWidth="1" />
-            <polyline fill="none" stroke="#3B82F6" strokeWidth="3" points={chartPoints} />
-            {chartPoints && (
-              <polygon
-                points={`${chartPoints} 310,120 10,120`}
-                fill="url(#trendFill)"
+        .charts-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 1.25rem;
+          margin-top: 1.5rem;
+          font-family: 'Inter', sans-serif;
+        }
+
+        @media (max-width: 1100px) {
+          .charts-grid { grid-template-columns: 1fr 1fr; }
+          .chart-trend { grid-column: 1 / -1; }
+        }
+
+        @media (max-width: 640px) {
+          .charts-grid { grid-template-columns: 1fr; }
+          .chart-trend { grid-column: auto; }
+        }
+
+        .chart-card {
+          background: #ffffff;
+          border-radius: 1rem;
+          border: 1px solid #f0f2f8;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+          padding: 1.35rem;
+          overflow: hidden;
+        }
+
+        .chart-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          margin-bottom: 1.1rem;
+        }
+
+        .chart-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .chart-subtitle {
+          font-size: 0.75rem;
+          color: #94a3b8;
+          margin-top: 2px;
+        }
+
+        .chart-badge {
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 0.25rem 0.65rem;
+          border-radius: 99px;
+          background: #eef0ff;
+          color: #6366f1;
+          white-space: nowrap;
+        }
+
+        /* -- Attendance Trend -- */
+        .trend-svg-wrap {
+          background: #f8fafc;
+          border-radius: 0.75rem;
+          padding: 0.5rem 0.75rem 0.25rem;
+          overflow: hidden;
+        }
+
+        .trend-days {
+          display: grid;
+          gap: 0.25rem;
+          margin-top: 0.75rem;
+        }
+
+        .trend-day-item {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+        }
+
+        .trend-day-label {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #64748b;
+          width: 28px;
+          flex-shrink: 0;
+        }
+
+        .trend-day-bar-wrap {
+          flex: 1;
+          height: 6px;
+          background: #f1f5f9;
+          border-radius: 99px;
+          overflow: hidden;
+        }
+
+        .trend-day-bar {
+          height: 100%;
+          border-radius: 99px;
+          background: linear-gradient(90deg, #6366f1, #8b5cf6);
+          transition: width 0.5s ease;
+        }
+
+        .trend-day-pct {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #475569;
+          width: 32px;
+          text-align: right;
+          flex-shrink: 0;
+        }
+
+        /* -- Leave Donut -- */
+        .donut-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0.5rem 0 1rem;
+        }
+
+        .donut-ring {
+          position: relative;
+        }
+
+        .donut-center {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .donut-center-num {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1;
+        }
+
+        .donut-center-label {
+          font-size: 0.65rem;
+          color: #94a3b8;
+          font-weight: 500;
+          margin-top: 2px;
+        }
+
+        .leave-legend {
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+        }
+
+        .leave-legend-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.55rem 0.75rem;
+          border-radius: 0.5rem;
+        }
+
+        .leave-legend-left {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .leave-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .leave-legend-name {
+          font-size: 0.8rem;
+          font-weight: 600;
+        }
+
+        .leave-legend-count {
+          font-size: 0.875rem;
+          font-weight: 800;
+        }
+
+        /* -- Department -- */
+        .dept-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.85rem;
+          margin-top: 0.25rem;
+        }
+
+        .dept-item-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.3rem;
+        }
+
+        .dept-name {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .dept-count {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .dept-bar-wrap {
+          height: 7px;
+          background: #f1f5f9;
+          border-radius: 99px;
+          overflow: hidden;
+        }
+
+        .dept-bar {
+          height: 100%;
+          border-radius: 99px;
+          transition: width 0.5s ease;
+        }
+      `}</style>
+
+      <div className="charts-grid">
+        {/* ---- Attendance Trend ---- */}
+        <div className="chart-card chart-trend" style={{ gridColumn: "1 / 3" }}>
+          <div className="chart-header">
+            <div>
+              <p className="chart-title">7-Day Attendance Trend</p>
+              <p className="chart-subtitle">Present + late check-ins as % of total staff</p>
+            </div>
+            <span className="chart-badge">Last 7 Days</span>
+          </div>
+
+          <div className="trend-svg-wrap">
+            <svg viewBox="0 0 320 130" style={{ width: "100%", height: "160px" }} aria-label="attendance trend">
+              <defs>
+                <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+              {/* Grid lines */}
+              {[0, 25, 50, 75, 100].map((pct) => {
+                const y = 110 - (pct / 100) * 90;
+                return (
+                  <g key={pct}>
+                    <line x1="10" y1={y} x2="310" y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 3" />
+                    <text x="6" y={y + 4} fontSize="8" fill="#94a3b8" textAnchor="end">{pct}%</text>
+                  </g>
+                );
+              })}
+              {/* Area fill */}
+              {chartPoints && (
+                <polygon
+                  points={`${chartPoints} 310,110 10,110`}
+                  fill="url(#trendGrad)"
+                />
+              )}
+              {/* Line */}
+              <polyline
+                fill="none"
+                stroke="url(#lineGrad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={chartPoints}
               />
-            )}
-            {attendanceTrend.map((point, index) => {
-              const x = (index / Math.max(attendanceTrend.length - 1, 1)) * 300 + 10;
-              const y = 120 - (point.attendanceRate / 100) * 100;
-              return (
-                <circle key={point.key} cx={x} cy={y} r="4" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              );
-            })}
-          </svg>
-        </div>
-
-        <div className="mt-4 grid grid-cols-7 gap-2">
-          {attendanceTrend.map((point) => (
-            <div key={point.key} className="rounded-md bg-slate-50 px-2 py-2 text-center">
-              <p className="text-xs font-medium text-slate-500">{point.label}</p>
-              <p className="mt-1 text-sm font-bold text-slate-800">{Math.round(point.attendanceRate)}%</p>
-              <p className="text-[11px] text-slate-500">{point.presentCount} present</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-900">Leave Status Mix</h2>
-        <p className="mt-1 text-sm text-slate-500">Distribution of all leave requests</p>
-
-        <div className="mt-5 flex items-center justify-center">
-          <div
-            className="relative h-40 w-40 rounded-full"
-            style={{
-              background: `conic-gradient(#f59e0b 0% ${pendingPct}%, #10b981 ${pendingPct}% ${pendingPct + approvedPct}%, #ef4444 ${pendingPct + approvedPct}% 100%)`
-            }}
-          >
-            <div className="absolute inset-5 flex items-center justify-center rounded-full bg-white text-center">
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{leaveTotal}</p>
-                <p className="text-xs text-slate-500">Total Requests</p>
-              </div>
-            </div>
+              {/* Dots */}
+              {attendanceTrend.map((point, index) => {
+                const x = (index / Math.max(attendanceTrend.length - 1, 1)) * 300 + 10;
+                const y = 110 - (point.attendanceRate / 100) * 90;
+                return (
+                  <g key={point.key}>
+                    <circle cx={x} cy={y} r="5" fill="#6366f1" stroke="#ffffff" strokeWidth="2" />
+                    <text x={x} y={y - 10} fontSize="8" fill="#6366f1" textAnchor="middle" fontWeight="700">
+                      {Math.round(point.attendanceRate)}%
+                    </text>
+                  </g>
+                );
+              })}
+              {/* Day labels */}
+              {attendanceTrend.map((point, index) => {
+                const x = (index / Math.max(attendanceTrend.length - 1, 1)) * 300 + 10;
+                return (
+                  <text key={`lbl-${point.key}`} x={x} y={126} fontSize="8" fill="#94a3b8" textAnchor="middle" fontWeight="600">
+                    {point.label}
+                  </text>
+                );
+              })}
+            </svg>
           </div>
-        </div>
 
-        <div className="mt-5 space-y-2 text-sm">
-          <div className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2">
-            <span className="font-medium text-amber-800">Pending</span>
-            <span className="font-bold text-amber-900">{leaveDistribution.pending}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-md bg-emerald-50 px-3 py-2">
-            <span className="font-medium text-emerald-800">Approved</span>
-            <span className="font-bold text-emerald-900">{leaveDistribution.approved}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-md bg-red-50 px-3 py-2">
-            <span className="font-medium text-red-800">Rejected</span>
-            <span className="font-bold text-red-900">{leaveDistribution.rejected}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-3">
-        <h2 className="text-xl font-semibold text-slate-900">Department Workforce</h2>
-        <p className="mt-1 text-sm text-slate-500">Employee headcount by department</p>
-
-        <div className="mt-5 space-y-3">
-          {departmentHeadcount.length === 0 ? (
-            <p className="text-sm text-slate-500">No department data yet.</p>
-          ) : (
-            departmentHeadcount.map((department) => (
-              <div key={department.name}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium text-slate-700">{department.name}</span>
-                  <span className="font-semibold text-slate-900">{department.count}</span>
-                </div>
-                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+          <div className="trend-days" style={{ gridTemplateColumns: `repeat(${attendanceTrend.length}, 1fr)` }}>
+            {attendanceTrend.map((point) => (
+              <div key={point.key} className="trend-day-item">
+                <span className="trend-day-label">{point.label}</span>
+                <div className="trend-day-bar-wrap">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-500"
-                    style={{ width: `${(department.count / maxDepartmentCount) * 100}%` }}
+                    className="trend-day-bar"
+                    style={{ width: `${maxRate > 0 ? (point.attendanceRate / maxRate) * 100 : 0}%` }}
                   />
                 </div>
+                <span className="trend-day-pct">{Math.round(point.attendanceRate)}%</span>
               </div>
-            ))
+            ))}
+          </div>
+        </div>
+
+        {/* ---- Leave Distribution ---- */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <div>
+              <p className="chart-title">Leave Status</p>
+              <p className="chart-subtitle">All leave requests breakdown</p>
+            </div>
+          </div>
+
+          <div className="donut-wrap">
+            <div className="donut-ring" style={{ width: 120, height: 120 }}>
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#f1f5f9" strokeWidth="16" />
+                {leaveTotal > 0 && (
+                  <>
+                    <circle
+                      cx="60" cy="60" r="44"
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="16"
+                      strokeDasharray={`${(pendingPct / 100) * 276.5} 276.5`}
+                      strokeDashoffset="69"
+                      strokeLinecap="round"
+                    />
+                    <circle
+                      cx="60" cy="60" r="44"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="16"
+                      strokeDasharray={`${(approvedPct / 100) * 276.5} 276.5`}
+                      strokeDashoffset={`${69 - (pendingPct / 100) * 276.5}`}
+                      strokeLinecap="round"
+                    />
+                  </>
+                )}
+              </svg>
+              <div className="donut-center">
+                <span className="donut-center-num">{leaveTotal}</span>
+                <span className="donut-center-label">Total</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="leave-legend">
+            <div className="leave-legend-item" style={{ background: "#fffbeb" }}>
+              <div className="leave-legend-left">
+                <span className="leave-dot" style={{ background: "#f59e0b" }} />
+                <span className="leave-legend-name" style={{ color: "#92400e" }}>Pending</span>
+              </div>
+              <span className="leave-legend-count" style={{ color: "#78350f" }}>{leaveDistribution.pending}</span>
+            </div>
+            <div className="leave-legend-item" style={{ background: "#ecfdf5" }}>
+              <div className="leave-legend-left">
+                <span className="leave-dot" style={{ background: "#10b981" }} />
+                <span className="leave-legend-name" style={{ color: "#065f46" }}>Approved</span>
+              </div>
+              <span className="leave-legend-count" style={{ color: "#064e3b" }}>{leaveDistribution.approved}</span>
+            </div>
+            <div className="leave-legend-item" style={{ background: "#fff1f2" }}>
+              <div className="leave-legend-left">
+                <span className="leave-dot" style={{ background: "#ef4444" }} />
+                <span className="leave-legend-name" style={{ color: "#991b1b" }}>Rejected</span>
+              </div>
+              <span className="leave-legend-count" style={{ color: "#7f1d1d" }}>{leaveDistribution.rejected}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Department Workforce ---- */}
+        <div className="chart-card" style={{ gridColumn: "1 / -1" }}>
+          <div className="chart-header">
+            <div>
+              <p className="chart-title">Department Workforce</p>
+              <p className="chart-subtitle">Employee headcount by department</p>
+            </div>
+          </div>
+
+          {departmentHeadcount.length === 0 ? (
+            <p style={{ fontSize: "0.85rem", color: "#94a3b8" }}>No department data yet.</p>
+          ) : (
+            <div className="dept-list">
+              {departmentHeadcount.map((dept, i) => (
+                <div key={dept.name}>
+                  <div className="dept-item-header">
+                    <span className="dept-name">{dept.name}</span>
+                    <span className="dept-count">{dept.count} employees</span>
+                  </div>
+                  <div className="dept-bar-wrap">
+                    <div
+                      className="dept-bar"
+                      style={{
+                        width: `${(dept.count / maxDepartmentCount) * 100}%`,
+                        background: DEPT_COLORS[i % DEPT_COLORS.length],
+                        opacity: 0.85,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      </section>
-    </div>
+      </div>
+    </>
   );
 };

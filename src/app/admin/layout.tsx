@@ -4,11 +4,11 @@ import { Sidebar } from "@/components/shared/Sidebar";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="flex h-screen bg-slate-50">
-        <aside className="w-64 overflow-y-auto">
+      <div style={{ display: "flex", height: "100vh", background: "#f5f7ff" }}>
+        <aside style={{ width: "240px", flexShrink: 0, overflow: "hidden" }}>
           <Sidebar />
         </aside>
-        <main className="flex-1 overflow-y-auto">
+        <main style={{ flex: 1, overflowY: "auto" }}>
           {children}
         </main>
       </div>
