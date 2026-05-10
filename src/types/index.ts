@@ -54,6 +54,7 @@ export interface LeaveRequest {
   approvedBy?: string;
   approvalDate?: string;
   createdAt?: string;
+  adminRemarks?: string;
 }
 
 // Dashboard metrics
