@@ -22,48 +22,126 @@ export default function EmployeeDashboard() {
         const attendancePromise = user?.uid
           ? firebaseHelpers.getAttendanceRecords(user.uid)
           : Promise.resolve([]);
-        const [attendanceResult, announcementsResult] =
+        const leavePromise = user?.uid
+          ? firebaseHelpers.getLeaveRequests(user.uid)
+          : Promise.resolve([]);
+
+        const [attendanceResult, announcementsResult, leaveResult] =
           await Promise.allSettled([
             attendancePromise,
             firebaseHelpers.getAllAnnouncements(),
+            leavePromise,
           ]);
 
+        let allAttendance: AttendanceRecord[] = [];
         if (attendanceResult.status === "fulfilled") {
-          const sorted = (attendanceResult.value as AttendanceRecord[]).sort(
+          allAttendance = attendanceResult.value as AttendanceRecord[];
+          const sorted = [...allAttendance].sort(
             (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
           );
           setRecentAttendance(sorted.slice(0, 3));
         } else {
-          console.error(
-            "Error fetching attendance records:",
-            attendanceResult.reason,
-          );
+          console.error("Error fetching attendance:", attendanceResult.reason);
         }
 
         if (announcementsResult.status === "fulfilled") {
           setAnnouncements(announcementsResult.value.slice(0, 4));
           setAnnouncementLoadError("");
         } else {
-          console.error(
-            "Error fetching announcements:",
-            announcementsResult.reason,
-          );
-          const reasonMessage =
-            announcementsResult.reason instanceof Error
-              ? announcementsResult.reason.message
-              : "unknown error";
-          setAnnouncementLoadError(
-            `Announcements are currently unavailable (${reasonMessage}). Please check Firestore read permissions for employees.`,
-          );
+          console.error("Error fetching announcements:", announcementsResult.reason);
+          setAnnouncementLoadError("Announcements unavailable.");
           setAnnouncements([]);
         }
 
-        // Keep existing metrics block
+        let pendingLeaves = 0;
+        let annualLeaveBalance = 14;
+        let sickLeaveBalance = 14;
+
+        if (leaveResult.status === "fulfilled") {
+          const leaves = leaveResult.value as any[];
+          
+          pendingLeaves = leaves.filter((l) => l.status === "pending").length;
+
+          // Calculate working days for approved leaves
+          const calculateDays = (start: string, end: string) => {
+            let count = 0;
+            let current = new Date(start);
+            const endDate = new Date(end);
+            while (current <= endDate) {
+              const day = current.getDay();
+              if (day !== 0 && day !== 6) count++;
+              current.setDate(current.getDate() + 1);
+            }
+            return count;
+          };
+
+          const approvedLeaves = leaves.filter((l) => l.status === "approved");
+          let annualUsed = 0;
+          let sickUsed = 0;
+
+          approvedLeaves.forEach((l) => {
+            const days = calculateDays(l.startDate, l.endDate);
+            if (l.leaveType === "annual") annualUsed += days;
+            if (l.leaveType === "sick") sickUsed += days;
+          });
+
+          annualLeaveBalance = Math.max(0, 14 - annualUsed);
+          sickLeaveBalance = Math.max(0, 14 - sickUsed);
+        }
+
+        // Attendance Calculations
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        let presentDays = 0;
+        let totalWorkedHours = 0;
+        let totalOvertimeHours = 0;
+        
+        const currentMonthRecords = allAttendance.filter((record) => {
+          const recordDate = new Date(record.date);
+          return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+        });
+
+        currentMonthRecords.forEach((record) => {
+          if (record.status === "present") presentDays++;
+          
+          if (record.checkInTime && record.checkOutTime) {
+            const checkIn = new Date(record.checkInTime);
+            const checkOut = new Date(record.checkOutTime);
+            const diffMs = checkOut.getTime() - checkIn.getTime();
+            const hours = diffMs / (1000 * 60 * 60);
+            
+            if (hours > 0) {
+              if (hours > 8) {
+                totalWorkedHours += 8;
+                totalOvertimeHours += (hours - 8);
+              } else {
+                totalWorkedHours += hours;
+              }
+            }
+          }
+        });
+
+        const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        let expectedWorkingDays = 0;
+        for (let i = 1; i <= Math.min(totalDaysInMonth, now.getDate()); i++) {
+          const d = new Date(currentYear, currentMonth, i);
+          if (d.getDay() !== 0 && d.getDay() !== 6) expectedWorkingDays++;
+        }
+
+        const attendancePercent = expectedWorkingDays > 0 
+          ? Math.round((presentDays / expectedWorkingDays) * 100) 
+          : 100;
+
         setEmployeeMetrics({
-          attendanceStreak: 12,
-          pendingLeaves: 1,
-          annualLeaveBalance: 14,
-          sickLeaveBalance: 6,
+          attendancePercent: Math.min(100, attendancePercent),
+          workedHours: Math.round(totalWorkedHours + totalOvertimeHours),
+          regularHours: Math.round(totalWorkedHours),
+          overtimeHours: Math.round(totalOvertimeHours),
+          pendingLeaves,
+          annualLeaveBalance,
+          sickLeaveBalance,
         });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -84,10 +162,10 @@ export default function EmployeeDashboard() {
   }
 
   const profileName = user?.fullName || user?.email || "Employee";
-  const attendancePercent = 98;
-  const workedHours = 160;
-  const regularHours = 152;
-  const overtimeHours = 8;
+  const attendancePercent = employeeMetrics?.attendancePercent || 0;
+  const workedHours = employeeMetrics?.workedHours || 0;
+  const regularHours = employeeMetrics?.regularHours || 0;
+  const overtimeHours = employeeMetrics?.overtimeHours || 0;
   const initials = (user?.fullName || "Employee")
     .split(" ")
     .filter(Boolean)

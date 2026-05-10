@@ -1230,10 +1230,10 @@ export const KanbanBoard = () => {
                     "No description provided for this project."}
                 </p>
                 <div className="project-members-list">
-                  {selectedProjectMembers.length > 0 ? (
-                    selectedProjectMembers.map((member) => (
-                      <span key={member.uid} className="project-member-chip">
-                        {member.fullName || member.email}
+                  {(selectedProject?.memberNames && selectedProject.memberNames.length > 0) ? (
+                    selectedProject.memberNames.map((name, index) => (
+                      <span key={index} className="project-member-chip">
+                        {name}
                       </span>
                     ))
                   ) : (
