@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
 import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch } from "firebase/firestore";
-import { Message, Project, ProjectTask, TaskStatus, TaskUrgency, User } from "@/types";
+import { Announcement, AnnouncementPriority, AnnouncementType, Message, Project, ProjectTask, TaskStatus, TaskUrgency, User } from "@/types";
 
 interface Department {
   id: string;
@@ -27,6 +27,35 @@ export { auth, db, app };
 
 const getConversationKey = (userAId: string, userBId: string) => {
   return [userAId, userBId].sort().join("_");
+};
+
+const toLocalISODate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeDateValue = (value: unknown): string => {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    // Accept both YYYY-MM-DD and ISO datetime values.
+    return value.slice(0, 10);
+  }
+
+  if (value instanceof Date) {
+    return toLocalISODate(value);
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    const toDateFn = (value as { toDate?: () => Date }).toDate;
+    if (typeof toDateFn === "function") {
+      return toLocalISODate(toDateFn());
+    }
+  }
+
+  return "";
 };
 
 export const firebaseHelpers = {
@@ -102,12 +131,16 @@ export const firebaseHelpers = {
     description?: string;
     createdBy: string;
     createdByName?: string;
+    memberIds?: string[];
+    memberNames?: string[];
   }) {
     const docRef = await addDoc(collection(db, "projects"), {
       title: projectData.title.trim(),
       description: projectData.description?.trim() || "",
       createdBy: projectData.createdBy,
       createdByName: projectData.createdByName || "",
+      memberIds: Array.isArray(projectData.memberIds) ? projectData.memberIds : [],
+      memberNames: Array.isArray(projectData.memberNames) ? projectData.memberNames : [],
       createdAt: new Date().toISOString()
     });
 
@@ -122,6 +155,24 @@ export const firebaseHelpers = {
         ...docSnapshot.data()
       } as Project))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  async getProjectsForEmployee(userId: string): Promise<Project[]> {
+    const projectsQuery = query(collection(db, "projects"), where("memberIds", "array-contains", userId));
+    const querySnapshot = await getDocs(projectsQuery);
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as Project))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  async updateProjectMembers(projectId: string, memberIds: string[], memberNames: string[]) {
+    await updateDoc(doc(db, "projects", projectId), {
+      memberIds,
+      memberNames
+    });
   },
 
   async createTask(taskData: {
@@ -414,5 +465,75 @@ export const firebaseHelpers = {
       counts[senderId] = (counts[senderId] || 0) + 1;
     });
     return counts;
+  },
+
+  // --- Announcements ---
+  async createAnnouncement(announcementData: {
+    title: string;
+    detail: string;
+    type: AnnouncementType;
+    priority: AnnouncementPriority;
+    startDate: string;
+    createdBy: string;
+    createdByName?: string;
+  }) {
+    const docRef = await addDoc(collection(db, "announcements"), {
+      title: announcementData.title.trim(),
+      detail: announcementData.detail.trim(),
+      type: announcementData.type,
+      priority: announcementData.priority,
+      startDate: announcementData.startDate,
+      createdBy: announcementData.createdBy,
+      createdByName: announcementData.createdByName || "",
+      createdAt: new Date().toISOString()
+    });
+
+    return docRef.id;
+  },
+
+  async getAllAnnouncements(): Promise<Announcement[]> {
+    const querySnapshot = await getDocs(collection(db, "announcements"));
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as Announcement))
+      .sort((a, b) => {
+        if (a.startDate !== b.startDate) {
+          return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  },
+
+  async getActiveAnnouncements(referenceDate?: string): Promise<Announcement[]> {
+    const today = referenceDate || toLocalISODate();
+    const querySnapshot = await getDocs(collection(db, "announcements"));
+
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as Announcement))
+      .filter((announcement) => {
+        const normalizedStart = normalizeDateValue(announcement.startDate);
+        return normalizedStart !== "" && normalizedStart <= today;
+      })
+      .sort((a, b) => {
+        const priorityOrder: Record<AnnouncementPriority, number> = {
+          high: 3,
+          medium: 2,
+          low: 1
+        };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        const aStart = normalizeDateValue(a.startDate);
+        const bStart = normalizeDateValue(b.startDate);
+        if (aStart !== bStart) {
+          return new Date(bStart).getTime() - new Date(aStart).getTime();
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
   }
 };

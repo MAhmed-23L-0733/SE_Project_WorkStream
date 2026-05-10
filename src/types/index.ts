@@ -77,6 +77,22 @@ export interface Message {
   createdAt: string;
 }
 
+// Announcement types
+export type AnnouncementPriority = "low" | "medium" | "high";
+export type AnnouncementType = "timing_change" | "policy_update" | "general" | "company_change";
+
+export interface Announcement {
+  id?: string;
+  title: string;
+  detail: string;
+  type: AnnouncementType;
+  priority: AnnouncementPriority;
+  startDate: string;
+  createdBy: string;
+  createdByName?: string;
+  createdAt: string;
+}
+
 // Project and task types
 export type TaskUrgency = "low" | "medium" | "high" | "critical";
 export type TaskStatus = "todo" | "in_progress" | "done";
@@ -87,6 +103,8 @@ export interface Project {
   description?: string;
   createdBy: string;
   createdByName?: string;
+  memberIds?: string[];
+  memberNames?: string[];
   createdAt: string;
 }
 
