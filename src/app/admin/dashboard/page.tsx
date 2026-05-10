@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardMetrics } from "@/types";
@@ -7,6 +8,7 @@ import { firebaseHelpers } from "@/lib/firebase";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalEmployees: 0,
     presentToday: 0,
@@ -39,6 +41,15 @@ export default function AdminDashboard() {
     fetchMetrics();
   }, []);
 
+  const handleAddEmployee = () => {
+    router.push("/admin/employees");
+  };
+
+  const handleReviewLeaveRequests = () => {
+    router.push("/admin/leave-requests");
+  };
+
+  
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -75,14 +86,17 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-slate-900 mb-4">Quick Actions</h2>
           <div className="space-y-2">
-            <button className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded">
+            <button 
+              onClick={handleAddEmployee}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded transition-colors"
+            >
               ➕ Add New Employee
             </button>
-            <button className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded">
+            <button 
+              onClick={handleReviewLeaveRequests}
+              className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded transition-colors"
+            >
               📋 Review Leave Requests
-            </button>
-            <button className="w-full text-left px-4 py-2 hover:bg-slate-50 rounded">
-              📊 Generate Reports
             </button>
           </div>
         </div>

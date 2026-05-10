@@ -25,6 +25,8 @@ export default function DepartmentsPage() {
     name: "",
     description: ""
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "with-employees" | "without-employees">("all");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,13 +72,11 @@ export default function DepartmentsPage() {
   const handleSave = async () => {
     try {
       if (selectedDepartment) {
-        // Update existing department
         await firebaseHelpers.updateDepartment(selectedDepartment.id, formData);
         setDepartments(departments.map(dept =>
           dept.id === selectedDepartment.id ? { ...dept, ...formData } : dept
         ));
       } else {
-        // Create new department
         await firebaseHelpers.createDepartment(formData);
         const updatedDepartments = await firebaseHelpers.getAllDepartments();
         setDepartments(updatedDepartments);
@@ -121,6 +121,18 @@ export default function DepartmentsPage() {
     setFormData({ name: "", description: "" });
   };
 
+  const filteredDepartments = departments.filter(department => {
+    const matchesSearch = department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (department.description && department.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const employeeCount = employees.filter(emp => emp.department === department.name).length;
+    const matchesFilter = filterType === "all" ||
+                         (filterType === "with-employees" && employeeCount > 0) ||
+                         (filterType === "without-employees" && employeeCount === 0);
+    
+    return matchesSearch && matchesFilter;
+  });
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -143,17 +155,48 @@ export default function DepartmentsPage() {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b border-slate-200">
-          <button
-            onClick={handleAdd}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            + Add Department
-          </button>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <button
+              onClick={handleAdd}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              + Add Department
+            </button>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search departments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-64 px-3 py-2 pl-9 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+                <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as "all" | "with-employees" | "without-employees")}
+                className="px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              >
+                <option value="all">All Departments</option>
+                <option value="with-employees">With Employees</option>
+                <option value="without-employees">Without Employees</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="text-sm text-slate-600">
+            Showing {filteredDepartments.length} of {departments.length} departments
+          </div>
         </div>
 
-        {departments.length === 0 ? (
+        {filteredDepartments.length === 0 ? (
           <div className="p-6 text-center text-slate-600">
-            No departments found
+            {departments.length === 0 ? "No departments found" : "No departments match your search criteria"}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -167,7 +210,7 @@ export default function DepartmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {departments.map((department) => {
+                {filteredDepartments.map((department) => {
                   const employeeCount = employees.filter(emp => emp.department === department.name).length;
                   return (
                     <tr key={department.id} className="hover:bg-slate-50">
@@ -197,7 +240,7 @@ export default function DepartmentsPage() {
         )}
       </div>
 
-      {/* Department Modal */}
+
       {isModalOpen && (
         <div 
           className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
@@ -260,7 +303,7 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      
       {isDeleteModalOpen && departmentToDelete && (
         <div 
           className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"

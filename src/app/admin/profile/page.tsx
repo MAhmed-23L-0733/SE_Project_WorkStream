@@ -7,7 +7,7 @@ import { auth } from "@/lib/firebase";
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword } from "firebase/auth";
 
 export default function AdminProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -31,28 +31,26 @@ export default function AdminProfilePage() {
     profileImage: ""
   });
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user) {
-        try {
-          const userData = await firebaseHelpers.getUserById(user.uid);
-          if (userData) {
-            setFormData({
-              fullName: userData.fullName || "",
-              email: userData.email || "",
-              phoneNumber: userData.phoneNumber || "",
-              profileImage: userData.profileImage || ""
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setLoading(false);
-        }
+  const resetForm = async () => {
+    if (!user) return;
+    
+    try {
+      const userData = await firebaseHelpers.getUserById(user.uid);
+      if (userData) {
+        setFormData({
+          fullName: userData.fullName || "",
+          email: userData.email || "",
+          phoneNumber: userData.phoneNumber || "",
+          profileImage: userData.profileImage || ""
+        });
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
 
-    fetchUserData();
+  useEffect(() => {
+    resetForm().finally(() => setLoading(false));
   }, [user]);
 
   useEffect(() => {
@@ -89,6 +87,12 @@ export default function AdminProfilePage() {
     setIsSaving(true);
     try {
       await firebaseHelpers.updateUser(user.uid, {
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+        profileImage: formData.profileImage
+      });
+
+      updateUserData({
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         profileImage: formData.profileImage
@@ -159,20 +163,23 @@ export default function AdminProfilePage() {
       
       if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         errorMessage = "Current password is incorrect";
-        setPasswordErrors({ ...errors, currentPassword: errorMessage });
+        setPasswordErrors(prev => ({ ...prev, currentPassword: errorMessage }));
       } else if (error.code === "auth/weak-password") {
         errorMessage = "New password is too weak. Please use a stronger password";
-        setPasswordErrors({ ...errors, newPassword: errorMessage });
+        setPasswordErrors(prev => ({ ...prev, newPassword: errorMessage }));
       } else if (error.code === "auth/user-mismatch") {
         errorMessage = "User mismatch. Please logout and try again";
-        setPasswordErrors({ ...errors, currentPassword: errorMessage });
+        setPasswordErrors(prev => ({ ...prev, currentPassword: errorMessage }));
       } else if (error.code === "auth/requires-recent-login") {
         errorMessage = "Please logout and login again to change your password for security reasons";
-        setPasswordErrors({ ...errors, currentPassword: errorMessage });
+        setPasswordErrors(prev => ({ ...prev, currentPassword: errorMessage }));
       } else if (error.message) {
         errorMessage = error.message;
-        setPasswordErrors({ ...errors, currentPassword: errorMessage });
+        setPasswordErrors(prev => ({ ...prev, currentPassword: errorMessage }));
       }
+      
+      setToastMessage(errorMessage);
+      setToastType("error");
     } finally {
       setIsChangingPassword(false);
     }
@@ -303,26 +310,7 @@ export default function AdminProfilePage() {
           {/* Action Buttons */}
           <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-slate-200">
             <button
-              onClick={() => {
-                const fetchUserData = async () => {
-                  if (user) {
-                    try {
-                      const userData = await firebaseHelpers.getUserById(user.uid);
-                      if (userData) {
-                        setFormData({
-                          fullName: userData.fullName || "",
-                          email: userData.email || "",
-                          phoneNumber: userData.phoneNumber || "",
-                          profileImage: userData.profileImage || ""
-                        });
-                      }
-                    } catch (error) {
-                      console.error("Error fetching user data:", error);
-                    }
-                  }
-                };
-                fetchUserData();
-              }}
+              onClick={resetForm}
               disabled={isSaving}
               className="px-6 py-2 text-slate-600 hover:text-slate-800 font-medium disabled:opacity-50"
             >

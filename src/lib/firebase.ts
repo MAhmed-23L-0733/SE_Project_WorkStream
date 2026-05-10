@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
 import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint } from "firebase/firestore";
+import { User } from "@/types";
 
 interface Department {
   id: string;
@@ -25,14 +26,14 @@ const db: Firestore = getFirestore(app);
 export { auth, db, app };
 
 export const firebaseHelpers = {
-  async getUserById(userId: string) {
+  async getUserById(userId: string): Promise<User | null> {
     const userDoc = await getDoc(doc(db, "users", userId));
-    return userDoc.exists() ? { ...userDoc.data(), uid: userId } : null;
+    return userDoc.exists() ? { ...userDoc.data(), uid: userId } as User : null;
   },
 
-  async getAllUsers() {
+  async getAllUsers(): Promise<User[]> {
     const querySnapshot = await getDocs(collection(db, "users"));
-    return querySnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id }));
+    return querySnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as User));
   },
 
   async updateUser(userId: string, data: Record<string, any>) {

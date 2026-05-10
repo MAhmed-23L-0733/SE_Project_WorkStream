@@ -134,7 +134,7 @@ export default function EmployeeDashboard() {
           <div className="bg-white rounded-lg shadow p-6 border border-slate-200">
             <h2 className="text-xl font-semibold text-slate-900 mb-4">My Profile</h2>
             <div className="space-y-3 text-slate-600">
-              <p><span className="font-medium text-slate-800">Name:</span> {user?.displayName || "Not Set"}</p>
+              <p><span className="font-medium text-slate-800">Name:</span> {user?.fullName || "Not Set"}</p>
               <p><span className="font-medium text-slate-800">Email:</span> {user?.email}</p>
             </div>
           </div>

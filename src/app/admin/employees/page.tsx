@@ -27,6 +27,8 @@ export default function EmployeesPage() {
     position: "",
     dateOfJoin: ""
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
 
   useEffect(() => {
     const initializeDepartments = async () => {
@@ -73,7 +75,7 @@ export default function EmployeesPage() {
     });
   }, []);
 
-  // Handle Escape key to close modals
+  
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -117,7 +119,6 @@ export default function EmployeesPage() {
         position: formData.position
       });
 
-      // Update local state
       setEmployees(employees.map(emp =>
         emp.uid === selectedEmployee.uid
           ? { ...emp, department: formData.department, position: formData.position }
@@ -221,6 +222,16 @@ export default function EmployeesPage() {
     }
   };
 
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = employee.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (employee.position && employee.position.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesDepartment = selectedDepartmentFilter === "" || employee.department === selectedDepartmentFilter;
+    
+    return matchesSearch && matchesDepartment;
+  });
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -243,17 +254,51 @@ export default function EmployeesPage() {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b border-slate-200">
-          <button 
-            onClick={handleAddEmployee}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            + Add Employee
-          </button>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <button 
+              onClick={handleAddEmployee}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              + Add Employee
+            </button>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-64 px-3 py-2 pl-9 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              
+              <select
+                value={selectedDepartmentFilter}
+                onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="text-sm text-slate-600">
+            Showing {filteredEmployees.length} of {employees.length} employees
+          </div>
         </div>
 
-        {employees.length === 0 ? (
+        {filteredEmployees.length === 0 ? (
           <div className="p-6 text-center text-slate-600">
-            No employees found
+            {employees.length === 0 ? "No employees found" : "No employees match your search criteria"}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -268,7 +313,7 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {employees.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <tr key={employee.uid} className="hover:bg-slate-50">
                     <td className="px-6 py-3 text-sm text-slate-900">{employee.fullName}</td>
                     <td className="px-6 py-3 text-sm text-slate-600">{employee.email}</td>
@@ -296,7 +341,7 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Employee Edit Modal */}
+
       {isModalOpen && selectedEmployee && (
         <div 
           className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
@@ -364,7 +409,7 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+    
       {isDeleteModalOpen && employeeToDelete && (
         <div 
           className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
@@ -404,7 +449,7 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Add Employee Modal */}
+  
       {isAddModalOpen && (
         <div 
           className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"

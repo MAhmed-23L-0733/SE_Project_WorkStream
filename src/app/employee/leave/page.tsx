@@ -108,6 +108,11 @@ export default function LeavePage() {
   };
 
   const executeSubmit = async (daysRequested: number) => {
+    if (!user) {
+      setErrorMsg("User not authenticated");
+      return;
+    }
+
     try {
       const leaveData: LeaveRequest = {
         userId: user.uid,
