@@ -4,6 +4,77 @@ import { useState, useEffect, useCallback } from "react";
 import { firebaseHelpers } from "@/lib/firebase";
 import { User } from "@/types";
 
+const S = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+* { box-sizing: border-box; }
+.ep-root { padding: 1.75rem 2rem; background: #f5f7ff; min-height: 100vh; font-family: 'Inter', sans-serif; }
+.ep-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 1rem; }
+.ep-title { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0; }
+.ep-subtitle { font-size: 0.875rem; color: #64748b; margin: 0.25rem 0 0; }
+.ep-btn-primary { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; border: none; border-radius: 0.75rem; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: opacity .2s, transform .15s; box-shadow: 0 4px 12px rgba(99,102,241,.25); font-family: 'Inter',sans-serif; }
+.ep-btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+.ep-stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.ep-stat-card { background: #fff; border-radius: 1rem; padding: 1.25rem; border: 1px solid #f0f2f8; box-shadow: 0 2px 12px rgba(0,0,0,.04); }
+.ep-stat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin-bottom: .4rem; }
+.ep-stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.ep-table-card { background: #fff; border-radius: 1.25rem; border: 1px solid #f0f2f8; box-shadow: 0 2px 12px rgba(0,0,0,.04); overflow: hidden; }
+.ep-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; gap: 1rem; flex-wrap: wrap; }
+.ep-search-wrap { position: relative; flex: 1; max-width: 280px; }
+.ep-search-wrap svg { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: #94a3b8; }
+.ep-search { width: 100%; padding: .65rem .9rem .65rem 2.4rem; border: 1.5px solid #e2e8f0; border-radius: .75rem; font-size: .875rem; background: #f8fafc; outline: none; transition: border-color .2s, box-shadow .2s; font-family: 'Inter',sans-serif; color: #1e293b; }
+.ep-search:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); background: #fff; }
+.ep-filter { padding: .65rem .9rem; border: 1.5px solid #e2e8f0; border-radius: .75rem; font-size: .875rem; background: #f8fafc; outline: none; font-family: 'Inter',sans-serif; color: #1e293b; cursor: pointer; }
+.ep-filter:focus { border-color: #6366f1; }
+.ep-count { font-size: .78rem; color: #94a3b8; font-weight: 500; white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; }
+thead { background: #f8fafc; }
+th { padding: .85rem 1.25rem; text-align: left; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; border-bottom: 1px solid #f1f5f9; }
+tbody tr { transition: background .15s; }
+tbody tr:hover { background: #fafbff; }
+td { padding: 1rem 1.25rem; font-size: .875rem; color: #475569; border-bottom: 1px solid #f8fafc; }
+.ep-name-cell { display: flex; align-items: center; gap: .75rem; }
+.ep-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .85rem; flex-shrink: 0; object-fit: cover; }
+.ep-name { font-weight: 700; color: #1e293b; font-size: .9rem; }
+.ep-email-cell { font-size: .8rem; color: #64748b; }
+.ep-badge { display: inline-block; padding: .25rem .65rem; border-radius: 99px; font-size: .7rem; font-weight: 700; }
+.ep-btn-edit { font-size: .78rem; font-weight: 700; color: #6366f1; background: #eef0ff; border: none; padding: .35rem .75rem; border-radius: .5rem; cursor: pointer; transition: all .2s; font-family: 'Inter',sans-serif; }
+.ep-btn-edit:hover { background: #6366f1; color: #fff; }
+.ep-btn-del { font-size: .78rem; font-weight: 700; color: #ef4444; background: #fff1f2; border: none; padding: .35rem .75rem; border-radius: .5rem; cursor: pointer; transition: all .2s; font-family: 'Inter',sans-serif; }
+.ep-btn-del:hover { background: #ef4444; color: #fff; }
+.ep-empty { text-align: center; padding: 3rem; color: #94a3b8; font-size: .9rem; }
+/* Modal */
+.ep-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.35); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.ep-modal { background: #fff; border-radius: 1.25rem; padding: 2rem; width: 100%; max-width: 440px; margin: 1rem; box-shadow: 0 24px 60px rgba(0,0,0,.18); max-height: 90vh; overflow-y: auto; }
+.ep-modal h2 { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0 0 .35rem; }
+.ep-modal p.sub { font-size: .82rem; color: #64748b; margin: 0 0 1.5rem; }
+.ep-form-group { margin-bottom: 1rem; }
+.ep-form-group label { display: block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: .4rem; }
+.ep-inp { width: 100%; padding: .75rem .9rem; border: 1.5px solid #e2e8f0; border-radius: .75rem; font-size: .875rem; background: #f8fafc; outline: none; transition: all .2s; font-family: 'Inter',sans-serif; color: #1e293b; }
+.ep-inp:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+.ep-modal-footer { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
+.ep-btn-cancel { padding: .65rem 1.1rem; border: 1.5px solid #e2e8f0; border-radius: .75rem; background: #fff; color: #475569; font-weight: 600; font-size: .875rem; cursor: pointer; font-family: 'Inter',sans-serif; transition: background .2s; }
+.ep-btn-cancel:hover { background: #f8fafc; }
+.ep-btn-save { padding: .65rem 1.25rem; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; border: none; border-radius: .75rem; font-weight: 700; font-size: .875rem; cursor: pointer; font-family: 'Inter',sans-serif; transition: opacity .2s; box-shadow: 0 4px 12px rgba(99,102,241,.25); }
+.ep-btn-save:hover { opacity: .9; }
+.ep-btn-save:disabled, .ep-btn-del-modal:disabled { opacity: .5; cursor: not-allowed; }
+.ep-btn-del-modal { padding: .65rem 1.25rem; background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; border: none; border-radius: .75rem; font-weight: 700; font-size: .875rem; cursor: pointer; font-family: 'Inter',sans-serif; transition: opacity .2s; box-shadow: 0 4px 12px rgba(239,68,68,.25); }
+.ep-btn-del-modal:hover { opacity: .9; }
+.ep-del-icon { width: 48px; height: 48px; border-radius: 50%; background: #fff1f2; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+/* Toast */
+.ep-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff; border: 1px solid #f0f2f8; border-radius: 1rem; padding: 1rem 1.25rem; box-shadow: 0 8px 30px rgba(0,0,0,.12); font-size: .875rem; color: #1e293b; font-weight: 600; z-index: 100; max-width: 360px; display: flex; align-items: flex-start; gap: .75rem; }
+.ep-toast-icon { width: 32px; height: 32px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* Spinner */
+.ep-spinner { width: 40px; height: 40px; border: 3px solid #eef0ff; border-top-color: #6366f1; border-radius: 50%; animation: spin .7s linear infinite; margin: 4rem auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+`;
+
+const DEPT_COLORS = ["#eef0ff:#6366f1","#ecfdf5:#10b981","#fffbeb:#f59e0b","#fff1f2:#ef4444","#fdf4ff:#a855f7","#f0fdfa:#14b8a6"];
+function deptColor(dept: string) {
+  const idx = Math.abs(dept.split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % DEPT_COLORS.length;
+  const [bg,color] = DEPT_COLORS[idx].split(":");
+  return { bg, color };
+}
+
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<User[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
@@ -16,546 +87,276 @@ export default function EmployeesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    department: "",
-    position: ""
-  });
-  const [newEmployeeData, setNewEmployeeData] = useState({
-    fullName: "",
-    email: "",
-    department: "",
-    position: "",
-    dateOfJoin: ""
-  });
+  const [formData, setFormData] = useState({ department: "", position: "" });
+  const [newEmployeeData, setNewEmployeeData] = useState({ fullName: "", email: "", department: "", position: "", dateOfJoin: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
 
   useEffect(() => {
-    const initializeDepartments = async () => {
-      try {
-        const existingDepartments = await firebaseHelpers.getAllDepartments();
-        setDepartments(existingDepartments.map(dept => dept.name));
-      } catch (error) {
-        console.error("Error initializing departments:", error);
-        setDepartments([]);
-      }
-    };
-
-    const fetchEmployees = async () => {
-      try {
-        const users = await firebaseHelpers.getAllUsers();
-        const filteredEmployees = (users as User[]).filter(user => user.role === "employee");
-        setEmployees(filteredEmployees);
-      } catch (error) {
-        console.error("Error fetching employees:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeDepartments();
-    fetchEmployees();
+    Promise.all([
+      firebaseHelpers.getAllDepartments().then(d => setDepartments(d.map((x:any) => x.name))).catch(() => {}),
+      firebaseHelpers.getAllUsers().then(u => setEmployees((u as User[]).filter(x => x.role === "employee"))).catch(() => {})
+    ]).finally(() => setLoading(false));
   }, []);
 
-  
-  const handleCloseModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedEmployee(null);
-    setFormData({ department: "", position: "" });
-  }, []);
-
-  const handleCloseAddModal = useCallback(() => {
-    setIsAddModalOpen(false);
-    setNewEmployeeData({
-      fullName: "",
-      email: "",
-      department: "",
-      position: "",
-      dateOfJoin: ""
-    });
-  }, []);
-
-  
-  useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (isAddModalOpen) {
-          handleCloseAddModal();
-        } else if (isModalOpen) {
-          handleCloseModal();
-        } else if (isDeleteModalOpen) {
-          cancelDelete();
-        }
-      }
-    };
-
-    if (isModalOpen || isDeleteModalOpen || isAddModalOpen) {
-      window.addEventListener("keydown", handleEscapeKey);
-      return () => window.removeEventListener("keydown", handleEscapeKey);
-    }
-  }, [isModalOpen, isDeleteModalOpen, isAddModalOpen]);
+  const handleCloseModal = useCallback(() => { setIsModalOpen(false); setSelectedEmployee(null); setFormData({ department: "", position: "" }); }, []);
+  const handleCloseAddModal = useCallback(() => { setIsAddModalOpen(false); setNewEmployeeData({ fullName: "", email: "", department: "", position: "", dateOfJoin: "" }); }, []);
 
   useEffect(() => {
-    if (!toastMessage) return;
-    const timer = window.setTimeout(() => setToastMessage(null), 3000);
-    return () => window.clearTimeout(timer);
-  }, [toastMessage]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isAddModalOpen) handleCloseAddModal();
+      else if (isModalOpen) handleCloseModal();
+      else if (isDeleteModalOpen) cancelDelete();
+    };
+    if (isModalOpen || isDeleteModalOpen || isAddModalOpen) { window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }
+  }, [isModalOpen, isDeleteModalOpen, isAddModalOpen, handleCloseModal, handleCloseAddModal]);
 
-  const handleEdit = (employee: User) => {
-    setSelectedEmployee(employee);
-    setFormData({
-      department: employee.department || "",
-      position: employee.position || ""
-    });
-    setIsModalOpen(true);
-  };
+  useEffect(() => { if (!toastMessage) return; const t = window.setTimeout(() => setToastMessage(null), 4000); return () => window.clearTimeout(t); }, [toastMessage]);
+
+  const handleEdit = (emp: User) => { setSelectedEmployee(emp); setFormData({ department: emp.department || "", position: emp.position || "" }); setIsModalOpen(true); };
 
   const handleSave = async () => {
     if (!selectedEmployee) return;
-
     try {
-      await firebaseHelpers.updateUser(selectedEmployee.uid, {
-        department: formData.department,
-        position: formData.position
-      });
-
-      setEmployees(employees.map(emp =>
-        emp.uid === selectedEmployee.uid
-          ? { ...emp, department: formData.department, position: formData.position }
-          : emp
-      ));
-
-      setIsModalOpen(false);
-      setSelectedEmployee(null);
-    } catch (error) {
-      console.error("Error updating employee:", error);
-    }
+      await firebaseHelpers.updateUser(selectedEmployee.uid, { department: formData.department, position: formData.position });
+      setEmployees(prev => prev.map(e => e.uid === selectedEmployee.uid ? { ...e, ...formData } : e));
+      handleCloseModal();
+      setToastMessage("Employee updated successfully!");
+    } catch { /* silent */ }
   };
 
-  const handleDelete = (employee: User) => {
-    setEmployeeToDelete(employee);
-    setIsDeleteModalOpen(true);
-  };
+  const handleDelete = (emp: User) => { setEmployeeToDelete(emp); setIsDeleteModalOpen(true); };
+  const cancelDelete = () => { setIsDeleteModalOpen(false); setEmployeeToDelete(null); };
 
   const confirmDelete = async () => {
     if (!employeeToDelete) return;
-
     setIsDeleting(true);
     try {
       await firebaseHelpers.deleteUser(employeeToDelete.uid);
-      setEmployees(employees.filter(emp => emp.uid !== employeeToDelete.uid));
-      setIsDeleteModalOpen(false);
-      setEmployeeToDelete(null);
-    } catch (error) {
-      console.error("Error deleting employee:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const cancelDelete = () => {
-    setIsDeleteModalOpen(false);
-    setEmployeeToDelete(null);
-  };
-
-  const handleAddEmployee = () => {
-    setNewEmployeeData({
-      fullName: "",
-      email: "",
-      department: "",
-      position: "",
-      dateOfJoin: ""
-    });
-    setIsAddModalOpen(true);
+      setEmployees(prev => prev.filter(e => e.uid !== employeeToDelete.uid));
+      cancelDelete();
+      setToastMessage(`${employeeToDelete.fullName} has been removed.`);
+    } catch { /* silent */ } finally { setIsDeleting(false); }
   };
 
   const handleAddEmployeeSave = async () => {
-    if (!newEmployeeData.fullName || !newEmployeeData.email || !newEmployeeData.dateOfJoin) {
-      alert("Please fill in all required fields");
-      return;
-    }
-
+    if (!newEmployeeData.fullName || !newEmployeeData.email || !newEmployeeData.dateOfJoin) { alert("Please fill in all required fields"); return; }
     setIsAdding(true);
     try {
-      const newEmployeeId = await firebaseHelpers.addEmployee({
-        fullName: newEmployeeData.fullName,
-        email: newEmployeeData.email,
-        department: newEmployeeData.department,
-        position: newEmployeeData.position,
-        role: "employee",
-        dateOfJoin: newEmployeeData.dateOfJoin
-      });
-
-  
-      setEmployees([...employees, {
-        uid: newEmployeeId,
-        fullName: newEmployeeData.fullName,
-        email: newEmployeeData.email,
-        department: newEmployeeData.department,
-        position: newEmployeeData.position,
-        role: "employee",
-        dateOfJoin: newEmployeeData.dateOfJoin
-      } as User]);
-
-      setIsAddModalOpen(false);
-      setNewEmployeeData({
-        fullName: "",
-        email: "",
-        department: "",
-        position: "",
-        dateOfJoin: ""
-      });
-      setToastMessage("Employee added successfully! They can now log in with their email and the default password: 123456789");
-    } catch (error) {
-      console.error("Error adding employee:", error);
-      if (error instanceof Error) {
-        if (error.message.includes("auth/email-already-in-use")) {
-          alert("This email is already in use. Please use a different email.");
-        } else {
-          alert("Failed to add employee. Please try again.");
-        }
-      } else {
-        alert("Failed to add employee. Please try again.");
-      }
-    } finally {
-      setIsAdding(false);
-    }
+      const newId = await firebaseHelpers.addEmployee({ ...newEmployeeData, role: "employee" } as any);
+      setEmployees(prev => [...prev, { uid: newId, ...newEmployeeData, role: "employee" } as User]);
+      handleCloseAddModal();
+      setToastMessage("Employee added! Default password: 123456789");
+    } catch (e: any) {
+      alert(e?.message?.includes("email-already-in-use") ? "Email already in use." : "Failed to add employee.");
+    } finally { setIsAdding(false); }
   };
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (employee.position && employee.position.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesDepartment = selectedDepartmentFilter === "" || employee.department === selectedDepartmentFilter;
-    
-    return matchesSearch && matchesDepartment;
+  const filtered = employees.filter(e => {
+    const q = searchTerm.toLowerCase();
+    const matchSearch = e.fullName.toLowerCase().includes(q) || e.email.toLowerCase().includes(q) || (e.position||"").toLowerCase().includes(q);
+    const matchDept = !selectedDepartmentFilter || e.department === selectedDepartmentFilter;
+    return matchSearch && matchDept;
   });
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const byDept = departments.reduce((acc, d) => { acc[d] = employees.filter(e => e.department === d).length; return acc; }, {} as Record<string, number>);
 
   return (
-    <div className="p-8">
+    <>
+      <style>{S}</style>
       {toastMessage && (
-        <div className="fixed right-6 top-6 z-50 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          {toastMessage}
+        <div className="ep-toast">
+          <div className="ep-toast-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>{toastMessage}</div>
         </div>
       )}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-900">Employees</h1>
-        <p className="text-slate-600 mt-2">Manage all employees in the system</p>
-      </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <button 
-              onClick={handleAddEmployee}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              + Add Employee
+      {loading ? <div className="ep-root"><div className="ep-spinner" /></div> : (
+        <div className="ep-root">
+          {/* Header */}
+          <div className="ep-topbar">
+            <div>
+              <h1 className="ep-title">Employees</h1>
+              <p className="ep-subtitle">Manage your team members and their roles</p>
+            </div>
+            <button className="ep-btn-primary" onClick={() => setIsAddModalOpen(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Employee
             </button>
-            
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full sm:w-64 px-3 py-2 pl-9 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+          </div>
+
+          {/* Stats */}
+          <div className="ep-stats-row">
+            <div className="ep-stat-card">
+              <div className="ep-stat-label">Total Employees</div>
+              <div className="ep-stat-value" style={{ color: "#6366f1" }}>{employees.length}</div>
+            </div>
+            <div className="ep-stat-card">
+              <div className="ep-stat-label">Departments</div>
+              <div className="ep-stat-value" style={{ color: "#10b981" }}>{departments.length}</div>
+            </div>
+            <div className="ep-stat-card">
+              <div className="ep-stat-label">Unassigned</div>
+              <div className="ep-stat-value" style={{ color: "#f59e0b" }}>{employees.filter(e => !e.department).length}</div>
+            </div>
+          </div>
+
+          {/* Table Card */}
+          <div className="ep-table-card">
+            <div className="ep-toolbar">
+              <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap", flex: 1 }}>
+                <div className="ep-search-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input className="ep-search" placeholder="Search by name, email or role…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+                <select className="ep-filter" value={selectedDepartmentFilter} onChange={e => setSelectedDepartmentFilter(e.target.value)}>
+                  <option value="">All Departments</option>
+                  {departments.map(d => <option key={d} value={d}>{d} ({byDept[d] || 0})</option>)}
+                </select>
               </div>
-              
-              <select
-                value={selectedDepartmentFilter}
-                onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
+              <span className="ep-count">Showing {filtered.length} of {employees.length}</span>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="ep-empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 1rem" }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <p>{employees.length === 0 ? "No employees yet. Add your first team member!" : "No employees match your search."}</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Email</th>
+                      <th>Position</th>
+                      <th>Department</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(emp => {
+                      const dc = deptColor(emp.department || "z");
+                      return (
+                        <tr key={emp.uid}>
+                          <td>
+                            <div className="ep-name-cell">
+                              {emp.profileImage
+                                ? <img src={emp.profileImage} alt={emp.fullName} className="ep-avatar" />
+                                : <div className="ep-avatar">{emp.fullName?.[0]?.toUpperCase() || "?"}</div>
+                              }
+                              <div>
+                                <div className="ep-name">{emp.fullName}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="ep-email-cell">{emp.email}</td>
+                          <td style={{ fontWeight: 600, color: "#1e293b" }}>{emp.position || <span style={{ color: "#cbd5e1" }}>—</span>}</td>
+                          <td>
+                            {emp.department
+                              ? <span className="ep-badge" style={{ background: dc.bg, color: dc.color }}>{emp.department}</span>
+                              : <span style={{ color: "#cbd5e1" }}>—</span>
+                            }
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", gap: ".5rem" }}>
+                              <button className="ep-btn-edit" onClick={() => handleEdit(emp)}>Edit</button>
+                              <button className="ep-btn-del" onClick={() => handleDelete(emp)}>Remove</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isModalOpen && selectedEmployee && (
+        <div className="ep-overlay" onClick={e => { if (e.target === e.currentTarget) handleCloseModal(); }}>
+          <div className="ep-modal">
+            <h2>Edit Employee</h2>
+            <p className="sub">{selectedEmployee.fullName} · {selectedEmployee.email}</p>
+            <div className="ep-form-group">
+              <label>Department</label>
+              <select className="ep-inp" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })}>
+                <option value="">Select Department</option>
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
-          </div>
-          
-          <div className="text-sm text-slate-600">
-            Showing {filteredEmployees.length} of {employees.length} employees
-          </div>
-        </div>
-
-        {filteredEmployees.length === 0 ? (
-          <div className="p-6 text-center text-slate-600">
-            {employees.length === 0 ? "No employees found" : "No employees match your search criteria"}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Email</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Position</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Department</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredEmployees.map((employee) => (
-                  <tr key={employee.uid} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 text-sm text-slate-900">{employee.fullName}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{employee.email}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{employee.position || "-"}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{employee.department || "-"}</td>
-                    <td className="px-6 py-3 text-sm space-x-3">
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee)}
-                        className="text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-
-      {isModalOpen && selectedEmployee && (
-        <div 
-          className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              handleCloseModal();
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">
-                Edit Employee: {selectedEmployee.fullName}
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Department
-                  </label>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-h-40 overflow-y-auto"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Position
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.position}
-                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter position"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md"
-                >
-                  Save Changes
-                </button>
-              </div>
+            <div className="ep-form-group">
+              <label>Position</label>
+              <input className="ep-inp" placeholder="e.g. Senior Engineer" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} />
+            </div>
+            <div className="ep-modal-footer">
+              <button className="ep-btn-cancel" onClick={handleCloseModal}>Cancel</button>
+              <button className="ep-btn-save" onClick={handleSave}>Save Changes</button>
             </div>
           </div>
         </div>
       )}
 
-    
+      {/* Delete Modal */}
       {isDeleteModalOpen && employeeToDelete && (
-        <div 
-          className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              cancelDelete();
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                Delete Employee?
-              </h2>
-              <p className="text-slate-600 mb-6">
-                Are you sure you want to delete <span className="font-semibold">{employeeToDelete.fullName}</span>? This action cannot be undone.
-              </p>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={cancelDelete}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  disabled={isDeleting}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md disabled:bg-red-400"
-                >
-                  {isDeleting ? "Deleting..." : "Delete Employee"}
-                </button>
-              </div>
+        <div className="ep-overlay" onClick={e => { if (e.target === e.currentTarget) cancelDelete(); }}>
+          <div className="ep-modal">
+            <div className="ep-del-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </div>
+            <h2>Remove Employee?</h2>
+            <p className="sub">Are you sure you want to remove <strong>{employeeToDelete.fullName}</strong>? This action cannot be undone.</p>
+            <div className="ep-modal-footer">
+              <button className="ep-btn-cancel" disabled={isDeleting} onClick={cancelDelete}>Cancel</button>
+              <button className="ep-btn-del-modal" disabled={isDeleting} onClick={confirmDelete}>{isDeleting ? "Removing…" : "Remove Employee"}</button>
             </div>
           </div>
         </div>
       )}
 
-  
+      {/* Add Modal */}
       {isAddModalOpen && (
-        <div 
-          className="fixed inset-0 bg-transparent backdrop-blur-md flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              handleCloseAddModal();
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 max-h-[85vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">
-                Add New Employee
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={newEmployeeData.fullName}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, fullName: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter full name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    value={newEmployeeData.email}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter email address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Department
-                  </label>
-                  <select
-                    value={newEmployeeData.department}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Position
-                  </label>
-                  <input
-                    type="text"
-                    value={newEmployeeData.position}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, position: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter position"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Date of Join *
-                  </label>
-                  <input
-                    type="date"
-                    value={newEmployeeData.dateOfJoin}
-                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, dateOfJoin: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+        <div className="ep-overlay" onClick={e => { if (e.target === e.currentTarget) handleCloseAddModal(); }}>
+          <div className="ep-modal">
+            <h2>Add New Employee</h2>
+            <p className="sub">They will receive a default password: <strong>123456789</strong></p>
+            {[
+              { label: "Full Name *", key: "fullName", type: "text", placeholder: "e.g. Sarah Johnson" },
+              { label: "Email Address *", key: "email", type: "email", placeholder: "sarah@company.com" },
+              { label: "Position", key: "position", type: "text", placeholder: "e.g. Software Engineer" },
+              { label: "Date of Join *", key: "dateOfJoin", type: "date", placeholder: "" },
+            ].map(f => (
+              <div className="ep-form-group" key={f.key}>
+                <label>{f.label}</label>
+                <input
+                  className="ep-inp"
+                  type={f.type}
+                  placeholder={f.placeholder}
+                  value={(newEmployeeData as any)[f.key]}
+                  onChange={e => setNewEmployeeData({ ...newEmployeeData, [f.key]: e.target.value })}
+                />
               </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={handleCloseAddModal}
-                  disabled={isAdding}
-                  className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddEmployeeSave}
-                  disabled={isAdding}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md disabled:bg-green-400"
-                >
-                  {isAdding ? "Adding..." : "Add Employee"}
-                </button>
-              </div>
+            ))}
+            <div className="ep-form-group">
+              <label>Department</label>
+              <select className="ep-inp" value={newEmployeeData.department} onChange={e => setNewEmployeeData({ ...newEmployeeData, department: e.target.value })}>
+                <option value="">Select Department</option>
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="ep-modal-footer">
+              <button className="ep-btn-cancel" disabled={isAdding} onClick={handleCloseAddModal}>Cancel</button>
+              <button className="ep-btn-save" disabled={isAdding} onClick={handleAddEmployeeSave}>{isAdding ? "Adding…" : "Add Employee"}</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
