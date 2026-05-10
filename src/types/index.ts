@@ -131,3 +131,15 @@ export interface GeolocationCoordinates {
   longitude: number;
   accuracy?: number;
 }
+
+// Notification types
+export interface AppNotification {
+  id?: string;
+  recipientId: string;
+  title: string;
+  message: string;
+  type: "message" | "project" | "attendance" | "task" | "leave" | "general";
+  read: boolean;
+  createdAt: string;
+  link?: string;
+}

@@ -52,7 +52,7 @@ export default function AdminLayout({
         )}
 
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] overflow-hidden bg-white shadow-xl transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:shadow-none ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] bg-white shadow-xl transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:shadow-none ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >

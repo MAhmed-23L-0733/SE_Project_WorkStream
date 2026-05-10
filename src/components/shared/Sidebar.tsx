@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
+import { NotificationBell } from "./NotificationBell";
 
 const AdminIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -140,8 +141,6 @@ export const Sidebar = () => {
         }
 
         .sidebar-profile {
-          padding: 0.9rem 1rem;
-          border-bottom: 1px solid #f1f3f8;
           text-decoration: none;
           display: block;
         }
@@ -293,23 +292,28 @@ export const Sidebar = () => {
         </div>
 
         {/* Profile */}
-        <Link href={profileHref} className="sidebar-profile">
-          <div className="sidebar-profile-inner">
-            {(user as any)?.profileImage ? (
-              <img
-                src={(user as any).profileImage}
-                alt={(user as any).fullName || "User"}
-                className="sidebar-avatar"
-              />
-            ) : (
-              <div className="sidebar-avatar">{initials}</div>
-            )}
-            <div className="sidebar-profile-text">
-              <p className="sidebar-profile-name">{(user as any)?.fullName || (role === "admin" ? "Admin" : "Employee")}</p>
-              <p className="sidebar-profile-role">{(user as any)?.position || role}</p>
+        <div className="sidebar-profile-container flex items-center justify-between border-b border-[#f1f3f8] px-4 py-3">
+          <Link href={profileHref} className="sidebar-profile flex-1 min-w-0 mr-2">
+            <div className="sidebar-profile-inner">
+              {(user as any)?.profileImage ? (
+                <img
+                  src={(user as any).profileImage}
+                  alt={(user as any).fullName || "User"}
+                  className="sidebar-avatar"
+                />
+              ) : (
+                <div className="sidebar-avatar">{initials}</div>
+              )}
+              <div className="sidebar-profile-text">
+                <p className="sidebar-profile-name">{(user as any)?.fullName || (role === "admin" ? "Admin" : "Employee")}</p>
+                <p className="sidebar-profile-role">{(user as any)?.position || role}</p>
+              </div>
             </div>
+          </Link>
+          <div className="shrink-0">
+            <NotificationBell />
           </div>
-        </Link>
+        </div>
 
         {/* Nav */}
         <nav className="sidebar-nav">

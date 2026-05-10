@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
-import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch } from "firebase/firestore";
-import { Announcement, AnnouncementPriority, AnnouncementType, Message, Project, ProjectTask, TaskStatus, TaskUrgency, User } from "@/types";
+import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch, onSnapshot, orderBy } from "firebase/firestore";
+import { Announcement, AnnouncementPriority, AnnouncementType, Message, Project, ProjectTask, TaskStatus, TaskUrgency, User, AppNotification } from "@/types";
 
 interface Department {
   id: string;
@@ -108,6 +108,15 @@ export const firebaseHelpers = {
       createdAt: new Date().toISOString()
     });
 
+    // Notify receiver
+    await this.createNotification({
+      recipientId: data.receiverId,
+      title: "New Message",
+      message: `You received a new message from ${data.senderRole}.`,
+      type: "message",
+      link: `/${data.receiverRole}/messages`
+    });
+
     return docRef.id;
   },
 
@@ -144,6 +153,21 @@ export const firebaseHelpers = {
       createdAt: new Date().toISOString()
     });
 
+    if (projectData.memberIds && projectData.memberIds.length > 0) {
+      const promises = projectData.memberIds.map(memberId => {
+        if (memberId !== projectData.createdBy) {
+          return this.createNotification({
+            recipientId: memberId,
+            title: "Added to Project",
+            message: `You have been added to the project "${projectData.title}".`,
+            type: "project",
+            link: "/employee/projects"
+          });
+        }
+      });
+      await Promise.all(promises);
+    }
+
     return docRef.id;
   },
 
@@ -169,10 +193,29 @@ export const firebaseHelpers = {
   },
 
   async updateProjectMembers(projectId: string, memberIds: string[], memberNames: string[]) {
-    await updateDoc(doc(db, "projects", projectId), {
+    const projectRef = doc(db, "projects", projectId);
+    const projectSnap = await getDoc(projectRef);
+    const oldMemberIds = projectSnap.exists() ? (projectSnap.data().memberIds || []) : [];
+
+    await updateDoc(projectRef, {
       memberIds,
       memberNames
     });
+
+    const newMembers = memberIds.filter(id => !oldMemberIds.includes(id));
+    if (newMembers.length > 0 && projectSnap.exists()) {
+      const title = projectSnap.data().title;
+      const promises = newMembers.map(memberId => 
+        this.createNotification({
+          recipientId: memberId,
+          title: "Added to Project",
+          message: `You have been added to the project "${title}".`,
+          type: "project",
+          link: "/employee/projects"
+        })
+      );
+      await Promise.all(promises);
+    }
   },
 
   async createTask(taskData: {
@@ -201,6 +244,16 @@ export const firebaseHelpers = {
       createdAt: now,
       updatedAt: now
     });
+
+    if (taskData.assignedTo && taskData.assignedTo !== taskData.createdBy) {
+      await this.createNotification({
+        recipientId: taskData.assignedTo,
+        title: "New Task Assigned",
+        message: `You have been assigned to the task "${taskData.title}".`,
+        type: "task",
+        link: "/employee/projects"
+      });
+    }
 
     return docRef.id;
   },
@@ -234,18 +287,45 @@ export const firebaseHelpers = {
   },
 
   async updateTaskStatus(taskId: string, status: TaskStatus) {
-    await updateDoc(doc(db, "tasks", taskId), {
+    const taskRef = doc(db, "tasks", taskId);
+    const taskSnap = await getDoc(taskRef);
+
+    await updateDoc(taskRef, {
       status,
       updatedAt: new Date().toISOString()
     });
+
+    if (status === "done" && taskSnap.exists()) {
+      const taskTitle = taskSnap.data().title;
+      await this.notifyAdmins({
+        title: "Task Completed",
+        message: `Task "${taskTitle}" has been marked as done.`,
+        type: "task",
+        link: "/admin/projects"
+      });
+    }
   },
 
   async assignTask(taskId: string, assignedTo: string, assignedToName: string) {
-    await updateDoc(doc(db, "tasks", taskId), {
+    const taskRef = doc(db, "tasks", taskId);
+    const taskSnap = await getDoc(taskRef);
+
+    await updateDoc(taskRef, {
       assignedTo,
       assignedToName,
       updatedAt: new Date().toISOString()
     });
+
+    if (assignedTo && taskSnap.exists()) {
+      const taskTitle = taskSnap.data().title;
+      await this.createNotification({
+        recipientId: assignedTo,
+        title: "New Task Assigned",
+        message: `You have been assigned to the task "${taskTitle}".`,
+        type: "task",
+        link: "/employee/projects"
+      });
+    }
   },
 
   async updateUser(userId: string, data: Record<string, any>) {
@@ -305,6 +385,18 @@ export const firebaseHelpers = {
       ...attendanceData,
       createdAt: new Date().toISOString()
     });
+
+    const userDoc = await getDoc(doc(db, "users", attendanceData.userId));
+    if (userDoc.exists()) {
+      const userName = userDoc.data().fullName || userDoc.data().email;
+      await this.notifyAdmins({
+        title: "Employee Checked In",
+        message: `${userName} checked in today.`,
+        type: "attendance",
+        link: "/admin/dashboard"
+      });
+    }
+
     return docRef.id;
   },
 
@@ -317,6 +409,23 @@ export const firebaseHelpers = {
 
   async updateAttendanceRecord(recordId: string, data: Record<string, any>) {
     await updateDoc(doc(db, "attendance", recordId), data);
+
+    if (data.checkOutTime) {
+      const recordSnap = await getDoc(doc(db, "attendance", recordId));
+      if (recordSnap.exists()) {
+        const userId = recordSnap.data().userId;
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const userName = userDoc.data().fullName || userDoc.data().email;
+          await this.notifyAdmins({
+            title: "Employee Checked Out",
+            message: `${userName} checked out.`,
+            type: "attendance",
+            link: "/admin/dashboard"
+          });
+        }
+      }
+    }
   },
 
   async createLeaveRequest(leaveData: Record<string, any>) {
@@ -325,6 +434,15 @@ export const firebaseHelpers = {
       status: "pending",
       createdAt: new Date().toISOString()
     });
+
+    const userName = leaveData.userName || "An employee";
+    await this.notifyAdmins({
+      title: "New Leave Request",
+      message: `${userName} has submitted a new leave request.`,
+      type: "leave",
+      link: "/admin/leave-requests"
+    });
+
     return docRef.id;
   },
 
@@ -343,6 +461,20 @@ export const firebaseHelpers = {
 
   async updateLeaveRequest(requestId: string, data: Record<string, any>) {
     await updateDoc(doc(db, "leaveRequests", requestId), data);
+
+    if (data.status === "approved" || data.status === "rejected") {
+      const requestSnap = await getDoc(doc(db, "leaveRequests", requestId));
+      if (requestSnap.exists()) {
+        const userId = requestSnap.data().userId;
+        await this.createNotification({
+          recipientId: userId,
+          title: `Leave Request ${data.status === 'approved' ? 'Approved' : 'Rejected'}`,
+          message: `Your leave request has been ${data.status}.`,
+          type: "leave",
+          link: "/employee/leave"
+        });
+      }
+    }
   },
 
   async deleteLeaveRequest(requestId: string) {
@@ -545,5 +677,70 @@ export const firebaseHelpers = {
         }
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
+  },
+
+  // --- Notification Helpers ---
+  async createNotification(data: Omit<AppNotification, "id" | "read" | "createdAt">): Promise<string> {
+    const docRef = await addDoc(collection(db, "notifications"), {
+      ...data,
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+    return docRef.id;
+  },
+
+  subscribeToNotifications(userId: string, callback: (notifications: AppNotification[]) => void): () => void {
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientId", "==", userId)
+    );
+    
+    // We listen to the query without sorting in firestore to avoid needing a composite index.
+    // We will sort in memory.
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs.map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as AppNotification));
+      
+      // Sort descending by createdAt
+      notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      callback(notifications);
+    });
+
+    return unsubscribe;
+  },
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    await updateDoc(doc(db, "notifications", notificationId), {
+      read: true
+    });
+  },
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientId", "==", userId),
+      where("read", "==", false)
+    );
+    const snapshot = await getDocs(q);
+    
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((docSnapshot) => {
+      batch.update(docSnapshot.ref, { read: true });
+    });
+    await batch.commit();
+  },
+
+  async notifyAdmins(data: Omit<AppNotification, "id" | "read" | "createdAt" | "recipientId">): Promise<void> {
+    const admins = await this.getUsersByRole("admin");
+    const promises = admins.map(admin => 
+      this.createNotification({
+        ...data,
+        recipientId: admin.uid
+      })
+    );
+    await Promise.all(promises);
   }
 };
