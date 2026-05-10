@@ -23,15 +23,19 @@ export const Sidebar = () => {
 
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard" },
+    { href: "/admin/projects", label: "Projects" },
     { href: "/admin/employees", label: "Employees" },
     { href: "/admin/departments", label: "Departments" },
-    { href: "/admin/leave-requests", label: "Leave Requests" }
+    { href: "/admin/leave-requests", label: "Leave Requests" },
+    { href: "/admin/messages", label: "Messages" }
   ];
 
   const employeeLinks = [
     { href: "/employee/dashboard", label: "Dashboard" },
+    { href: "/employee/projects", label: "Projects" },
     { href: "/employee/attendance", label: "Attendance" },
-    { href: "/employee/leave", label: "Leave Requests" }
+    { href: "/employee/leave", label: "Leave Requests" },
+    { href: "/employee/messages", label: "Messages" }
   ];
 
   const links = role === "admin" ? adminLinks : employeeLinks;

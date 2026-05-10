@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
-import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, Query, QueryConstraint } from "firebase/firestore";
-import { User } from "@/types";
+import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint } from "firebase/firestore";
+import { Message, Project, ProjectTask, TaskStatus, TaskUrgency, User } from "@/types";
 
 interface Department {
   id: string;
@@ -25,6 +25,10 @@ const db: Firestore = getFirestore(app);
 
 export { auth, db, app };
 
+const getConversationKey = (userAId: string, userBId: string) => {
+  return [userAId, userBId].sort().join("_");
+};
+
 export const firebaseHelpers = {
   async getUserById(userId: string): Promise<User | null> {
     const userDoc = await getDoc(doc(db, "users", userId));
@@ -34,6 +38,153 @@ export const firebaseHelpers = {
   async getAllUsers(): Promise<User[]> {
     const querySnapshot = await getDocs(collection(db, "users"));
     return querySnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as User));
+  },
+
+  async getUsersByRole(role: "admin" | "employee"): Promise<User[]> {
+    const usersQuery = query(collection(db, "users"), where("role", "==", role));
+    const querySnapshot = await getDocs(usersQuery);
+    return querySnapshot.docs.map((docSnapshot) => ({
+      ...docSnapshot.data(),
+      uid: docSnapshot.id
+    } as User));
+  },
+
+  async getAdmins(): Promise<User[]> {
+    return this.getUsersByRole("admin");
+  },
+
+  async getEmployees(): Promise<User[]> {
+    return this.getUsersByRole("employee");
+  },
+
+  async sendMessage(data: {
+    senderId: string;
+    senderRole: "admin" | "employee";
+    receiverId: string;
+    receiverRole: "admin" | "employee";
+    content: string;
+  }) {
+    const trimmedContent = data.content.trim();
+    if (!trimmedContent) {
+      throw new Error("Message content is required");
+    }
+
+    const docRef = await addDoc(collection(db, "messages"), {
+      senderId: data.senderId,
+      senderRole: data.senderRole,
+      receiverId: data.receiverId,
+      receiverRole: data.receiverRole,
+      conversationKey: getConversationKey(data.senderId, data.receiverId),
+      content: trimmedContent,
+      createdAt: new Date().toISOString()
+    });
+
+    return docRef.id;
+  },
+
+  async getConversationMessages(currentUserId: string, otherUserId: string): Promise<Message[]> {
+    const conversationQuery = query(
+      collection(db, "messages"),
+      where("conversationKey", "==", getConversationKey(currentUserId, otherUserId))
+    );
+
+    const querySnapshot = await getDocs(conversationQuery);
+    return querySnapshot.docs.map((docSnapshot) => ({
+      id: docSnapshot.id,
+      ...docSnapshot.data()
+    } as Message)).sort((a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  },
+
+  async createProject(projectData: {
+    title: string;
+    description?: string;
+    createdBy: string;
+    createdByName?: string;
+  }) {
+    const docRef = await addDoc(collection(db, "projects"), {
+      title: projectData.title.trim(),
+      description: projectData.description?.trim() || "",
+      createdBy: projectData.createdBy,
+      createdByName: projectData.createdByName || "",
+      createdAt: new Date().toISOString()
+    });
+
+    return docRef.id;
+  },
+
+  async getAllProjects(): Promise<Project[]> {
+    const querySnapshot = await getDocs(collection(db, "projects"));
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as Project))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  async createTask(taskData: {
+    projectId: string;
+    title: string;
+    description?: string;
+    urgency: TaskUrgency;
+    deadline?: string;
+    assignedTo?: string;
+    assignedToName?: string;
+    createdBy: string;
+    createdByName?: string;
+  }) {
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, "tasks"), {
+      projectId: taskData.projectId,
+      title: taskData.title.trim(),
+      description: taskData.description?.trim() || "",
+      urgency: taskData.urgency,
+      deadline: taskData.deadline || "",
+      status: "todo",
+      assignedTo: taskData.assignedTo || "",
+      assignedToName: taskData.assignedToName || "",
+      createdBy: taskData.createdBy,
+      createdByName: taskData.createdByName || "",
+      createdAt: now,
+      updatedAt: now
+    });
+
+    return docRef.id;
+  },
+
+  async getProjectTasks(projectId: string): Promise<ProjectTask[]> {
+    const taskQuery = query(collection(db, "tasks"), where("projectId", "==", projectId));
+    const querySnapshot = await getDocs(taskQuery);
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as ProjectTask))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  },
+
+  async updateTask(taskId: string, data: Partial<ProjectTask>) {
+    await updateDoc(doc(db, "tasks", taskId), {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async updateTaskStatus(taskId: string, status: TaskStatus) {
+    await updateDoc(doc(db, "tasks", taskId), {
+      status,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async assignTask(taskId: string, assignedTo: string, assignedToName: string) {
+    await updateDoc(doc(db, "tasks", taskId), {
+      assignedTo,
+      assignedToName,
+      updatedAt: new Date().toISOString()
+    });
   },
 
   async updateUser(userId: string, data: Record<string, any>) {

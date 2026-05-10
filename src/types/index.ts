@@ -65,6 +65,47 @@ export interface DashboardMetrics {
   averageAttendance: number;
 }
 
+// Messaging types
+export interface Message {
+  id?: string;
+  senderId: string;
+  senderRole: "admin" | "employee";
+  receiverId: string;
+  receiverRole: "admin" | "employee";
+  conversationKey: string;
+  content: string;
+  createdAt: string;
+}
+
+// Project and task types
+export type TaskUrgency = "low" | "medium" | "high" | "critical";
+export type TaskStatus = "todo" | "in_progress" | "done";
+
+export interface Project {
+  id?: string;
+  title: string;
+  description?: string;
+  createdBy: string;
+  createdByName?: string;
+  createdAt: string;
+}
+
+export interface ProjectTask {
+  id?: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  urgency: TaskUrgency;
+  deadline?: string;
+  status: TaskStatus;
+  assignedTo?: string;
+  assignedToName?: string;
+  createdBy: string;
+  createdByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Geolocation types
 export interface GeolocationCoordinates {
   latitude: number;
