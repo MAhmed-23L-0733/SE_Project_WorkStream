@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { firebaseHelpers } from "@/lib/firebase";
 
 export interface AuthUser {
   uid: string;
@@ -64,6 +65,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               authCreated: userData.authCreated
             });
             setRole(userData.role);
+            // Mark user as online
+            void firebaseHelpers.setUserOnlineStatus(currentUser.uid, true);
           } else {
             setUser({
               uid: currentUser.uid,
@@ -92,7 +95,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Mark offline on tab/browser close
+    const handleBeforeUnload = () => {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        // Use sendBeacon or synchronous approach for reliability
+        void firebaseHelpers.setUserOnlineStatus(uid, false);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Mark offline when component unmounts (logout)
+      const uid = auth.currentUser?.uid;
+      if (uid) void firebaseHelpers.setUserOnlineStatus(uid, false);
+    };
   }, []);
 
   const updateUserData = (data: Partial<AuthUser>) => {

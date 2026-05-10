@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
-import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint } from "firebase/firestore";
+import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch } from "firebase/firestore";
 import { Message, Project, ProjectTask, TaskStatus, TaskUrgency, User } from "@/types";
 
 interface Department {
@@ -361,29 +361,58 @@ export const firebaseHelpers = {
   },
 
   async deleteDepartment(departmentId: string) {
-    // First, get the department details to know the name
     const departmentDoc = await getDoc(doc(db, "departments", departmentId));
-    if (!departmentDoc.exists()) {
-      throw new Error("Department not found");
-    }
-    const departmentData = departmentDoc.data();
-    const departmentName = departmentData.name;
-
-    // Find all employees in this department and reset their department and position
+    if (!departmentDoc.exists()) throw new Error("Department not found");
+    const departmentName = departmentDoc.data().name;
     const usersQuery = query(collection(db, "users"), where("department", "==", departmentName));
     const usersSnapshot = await getDocs(usersQuery);
-    
-    const updatePromises = usersSnapshot.docs.map(userDoc => 
-      updateDoc(doc(db, "users", userDoc.id), {
-        department: null,
-        position: null
-      })
-    );
-
-    // Wait for all employee updates to complete
-    await Promise.all(updatePromises);
-
-    // Then delete the department
+    await Promise.all(usersSnapshot.docs.map(userDoc =>
+      updateDoc(doc(db, "users", userDoc.id), { department: null, position: null })
+    ));
     await deleteDoc(doc(db, "departments", departmentId));
+  },
+
+  // --- Presence ---
+  async setUserOnlineStatus(userId: string, isOnline: boolean) {
+    const data: Record<string, any> = { isOnline };
+    if (!isOnline) data.lastSeen = new Date().toISOString();
+    await updateDoc(doc(db, "users", userId), data);
+  },
+
+  async getUserPresence(userId: string): Promise<{ isOnline: boolean; lastSeen?: string }> {
+    const snap = await getDoc(doc(db, "users", userId));
+    if (!snap.exists()) return { isOnline: false };
+    const d = snap.data();
+    return { isOnline: d.isOnline ?? false, lastSeen: d.lastSeen };
+  },
+
+  // --- Read receipts ---
+  async markConversationRead(conversationKey: string, currentUserId: string) {
+    const q = query(
+      collection(db, "messages"),
+      where("conversationKey", "==", conversationKey),
+      where("receiverId", "==", currentUserId),
+      where("read", "==", false)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.update(d.ref, { read: true }));
+    await batch.commit();
+  },
+
+  async getUnreadCounts(currentUserId: string): Promise<Record<string, number>> {
+    const q = query(
+      collection(db, "messages"),
+      where("receiverId", "==", currentUserId),
+      where("read", "==", false)
+    );
+    const snap = await getDocs(q);
+    const counts: Record<string, number> = {};
+    snap.docs.forEach(d => {
+      const senderId: string = d.data().senderId;
+      counts[senderId] = (counts[senderId] || 0) + 1;
+    });
+    return counts;
   }
 };
