@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { AdminInsightsCharts } from "@/components/dashboard/AdminInsightsCharts";
+import { AttendanceLeaderboard } from "@/components/attendance/AttendanceLeaderboard";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Announcement,
@@ -1177,6 +1178,10 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="bottom-grid" style={{ marginTop: '1.5rem' }}>
+          <AttendanceLeaderboard />
         </div>
       </div>
     </>

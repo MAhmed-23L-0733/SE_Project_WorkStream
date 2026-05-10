@@ -216,6 +216,16 @@ export const firebaseHelpers = {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   },
 
+  async getAllTasks(): Promise<ProjectTask[]> {
+    const querySnapshot = await getDocs(collection(db, "tasks"));
+    return querySnapshot.docs
+      .map((docSnapshot) => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as ProjectTask))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  },
+
   async updateTask(taskId: string, data: Partial<ProjectTask>) {
     await updateDoc(doc(db, "tasks", taskId), {
       ...data,

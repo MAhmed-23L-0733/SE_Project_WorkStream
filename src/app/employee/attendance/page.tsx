@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { GeoCheckIn } from "@/components/attendance/GeoCheckIn";
+import { AttendanceLeaderboard } from "@/components/attendance/AttendanceLeaderboard";
 import { useAuth } from "@/hooks/useAuth";
 import { firebaseHelpers } from "@/lib/firebase";
 import { AttendanceRecord } from "@/types";
@@ -360,8 +361,9 @@ export default function AttendancePage() {
         </div>
 
         <div className="att-grid">
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <GeoCheckIn onSuccess={fetchAttendance} />
+            <AttendanceLeaderboard />
           </div>
 
           <div className="att-card">
