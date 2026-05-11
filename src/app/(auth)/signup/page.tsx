@@ -54,6 +54,8 @@ export default function SignUpPage() {
         fullName: formData.name,
         email: formData.email,
         role: formData.role,
+        department: "",
+        position: "",
         emailVerified: false,
         createdAt: new Date().toISOString(),
       });

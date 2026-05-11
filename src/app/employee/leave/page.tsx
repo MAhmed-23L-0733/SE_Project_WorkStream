@@ -11,6 +11,7 @@ export default function LeavePage() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     startDate: "",
@@ -64,6 +65,8 @@ export default function LeavePage() {
       await firebaseHelpers.createLeaveRequest(leaveData);
       setFormData({ startDate: "", endDate: "", leaveType: "", reason: "" });
       fetchLeaveRequests();
+      setToastMessage("Leave request submitted successfully!");
+      setTimeout(() => setToastMessage(null), 3000);
     } catch (error) {
       console.error("Error creating leave request:", error);
       alert("Failed to submit request.");
@@ -102,6 +105,8 @@ export default function LeavePage() {
     req.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (req.adminRemarks || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const todayStr = new Date().toISOString().split("T")[0];
 
   return (
     <>
@@ -400,9 +405,51 @@ export default function LeavePage() {
             width: 100%;
           }
         }
+
+        .ep-toast {
+          position: fixed;
+          bottom: 2rem;
+          right: 2rem;
+          background: #ffffff;
+          border-left: 4px solid #10b981;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          padding: 1rem 1.5rem;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          z-index: 1000;
+          animation: slideUp 0.3s ease-out;
+          font-family: 'Inter', sans-serif;
+          color: #0f172a;
+          font-weight: 500;
+        }
+
+        .ep-toast-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: #d1fae5;
+          border-radius: 50%;
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
       `}</style>
 
       <div className="lm-page">
+        {toastMessage && (
+          <div className="ep-toast">
+            <div className="ep-toast-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>{toastMessage}</div>
+          </div>
+        )}
         <div className="lm-header">
           <h1>Leave Management</h1>
           <p>Submit new requests and view your leave history below.</p>
@@ -443,6 +490,7 @@ export default function LeavePage() {
                       type="date" 
                       className="lm-input"
                       value={formData.startDate}
+                      min={todayStr}
                       onChange={(e) => setFormData({...formData, startDate: e.target.value})}
                       required
                     />
@@ -456,7 +504,7 @@ export default function LeavePage() {
                       type="date" 
                       className="lm-input"
                       value={formData.endDate}
-                      min={formData.startDate}
+                      min={formData.startDate || todayStr}
                       onChange={(e) => setFormData({...formData, endDate: e.target.value})}
                       required
                     />

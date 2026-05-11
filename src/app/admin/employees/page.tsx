@@ -86,6 +86,7 @@ export default function EmployeesPage() {
   const [employeeToDelete, setEmployeeToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({ department: "", position: "" });
   const [newEmployeeData, setNewEmployeeData] = useState({ fullName: "", email: "", department: "", position: "", dateOfJoin: "" });
@@ -100,7 +101,7 @@ export default function EmployeesPage() {
   }, []);
 
   const handleCloseModal = useCallback(() => { setIsModalOpen(false); setSelectedEmployee(null); setFormData({ department: "", position: "" }); }, []);
-  const handleCloseAddModal = useCallback(() => { setIsAddModalOpen(false); setNewEmployeeData({ fullName: "", email: "", department: "", position: "", dateOfJoin: "" }); }, []);
+  const handleCloseAddModal = useCallback(() => { setIsAddModalOpen(false); setNewEmployeeData({ fullName: "", email: "", department: "", position: "", dateOfJoin: "" }); setAddError(null); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -141,7 +142,8 @@ export default function EmployeesPage() {
   };
 
   const handleAddEmployeeSave = async () => {
-    if (!newEmployeeData.fullName || !newEmployeeData.email || !newEmployeeData.dateOfJoin) { alert("Please fill in all required fields"); return; }
+    setAddError(null);
+    if (!newEmployeeData.fullName || !newEmployeeData.email || !newEmployeeData.dateOfJoin) { setAddError("Please fill in all required fields."); return; }
     setIsAdding(true);
     try {
       const newId = await firebaseHelpers.addEmployee({ ...newEmployeeData, role: "employee" } as any);
@@ -149,7 +151,11 @@ export default function EmployeesPage() {
       handleCloseAddModal();
       setToastMessage("Employee added! Default password: 123456789");
     } catch (e: any) {
-      alert(e?.message?.includes("email-already-in-use") ? "Email already in use." : "Failed to add employee.");
+      if (e?.message === "employee-already-exists" || e?.message?.includes("email-already-in-use")) {
+        setAddError("Employee with this email already exists.");
+      } else {
+        setAddError("Failed to add employee.");
+      }
     } finally { setIsAdding(false); }
   };
 
@@ -326,6 +332,7 @@ export default function EmployeesPage() {
           <div className="ep-modal">
             <h2>Add New Employee</h2>
             <p className="sub">They will receive a default password: <strong>123456789</strong></p>
+            {addError && <div style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "1rem", fontWeight: 600, padding: "0.75rem", background: "#fef2f2", borderRadius: "0.5rem", border: "1px solid #fee2e2" }}>{addError}</div>}
             {[
               { label: "Full Name *", key: "fullName", type: "text", placeholder: "e.g. Sarah Johnson" },
               { label: "Email Address *", key: "email", type: "email", placeholder: "sarah@company.com" },

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { firebaseHelpers } from "@/lib/firebase";
 
@@ -42,12 +42,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubDoc: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setLoading(true);
       
+      if (unsubDoc) {
+        unsubDoc();
+      }
+
       if (currentUser) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        unsubDoc = onSnapshot(doc(db, "users", currentUser.uid), (userDoc) => {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUser({
@@ -77,7 +82,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             });
             setRole("employee");
           }
-        } catch (error) {
+          setLoading(false);
+        }, (error) => {
           console.error("Error fetching user data:", error);
           setUser({
             uid: currentUser.uid,
@@ -86,13 +92,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             isAnonymous: currentUser.isAnonymous
           });
           setRole(null);
-        }
+          setLoading(false);
+        });
       } else {
         setUser(null);
         setRole(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     // Mark offline on tab/browser close
@@ -106,7 +112,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      unsubscribe();
+      unsubscribeAuth();
+      if (unsubDoc) unsubDoc();
       window.removeEventListener("beforeunload", handleBeforeUnload);
       // Mark offline when component unmounts (logout)
       const uid = auth.currentUser?.uid;

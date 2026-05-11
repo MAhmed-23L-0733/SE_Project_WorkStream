@@ -310,9 +310,6 @@ export const Sidebar = () => {
               </div>
             </div>
           </Link>
-          <div className="shrink-0">
-            <NotificationBell />
-          </div>
         </div>
 
         {/* Nav */}

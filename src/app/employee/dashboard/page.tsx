@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { firebaseHelpers } from "@/lib/firebase";
 import Link from "next/link";
 import { Announcement, AttendanceRecord } from "@/types";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -231,20 +232,23 @@ export default function EmployeeDashboard() {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
             Employee Dashboard
           </h1>
-          <div className="text-right">
-            <p className="text-base font-bold text-slate-700">
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-            <p className="text-sm font-medium text-slate-500">
-              {new Date().toLocaleDateString([], {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
+          <div className="flex items-center gap-4 text-right">
+            <div>
+              <p className="text-base font-bold text-slate-700">
+                {new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+              <p className="text-sm font-medium text-slate-500">
+                {new Date().toLocaleDateString([], {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+            <NotificationBell />
           </div>
         </div>
 

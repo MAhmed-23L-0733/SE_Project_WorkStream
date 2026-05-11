@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { AdminInsightsCharts } from "@/components/dashboard/AdminInsightsCharts";
 import { AttendanceLeaderboard } from "@/components/attendance/AttendanceLeaderboard";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Announcement,
@@ -865,21 +866,8 @@ export default function AdminDashboard() {
               <div className="adash-time">{timeStr}</div>
               <div className="adash-date">{dateStr}</div>
             </div>
-            <div className="adash-bell">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#475569"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              {pendingLeaveCount > 0 && <span className="adash-bell-dot" />}
+            <div className="ml-2">
+              <NotificationBell />
             </div>
           </div>
         </div>

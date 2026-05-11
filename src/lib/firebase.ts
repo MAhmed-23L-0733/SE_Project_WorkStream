@@ -1,6 +1,6 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, deleteApp } from "firebase/app";
 import { getAuth, Auth, createUserWithEmailAndPassword, deleteUser, signOut } from "firebase/auth";
-import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch, onSnapshot, orderBy } from "firebase/firestore";
+import { getFirestore, Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, deleteDoc, QueryConstraint, writeBatch, onSnapshot, orderBy, setDoc } from "firebase/firestore";
 import { Announcement, AnnouncementPriority, AnnouncementType, Message, Project, ProjectTask, TaskStatus, TaskUrgency, User, AppNotification } from "@/types";
 
 interface Department {
@@ -357,12 +357,29 @@ export const firebaseHelpers = {
 
   async addEmployee(employeeData: Record<string, any>) {
     try {
-      // Generate a unique ID for the employee
-      const employeeId = doc(collection(db, "users")).id;
+      // Check if email already exists
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", employeeData.email));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        throw new Error("employee-already-exists");
+      }
 
-      // Only create Firestore document - Auth account will be created on first login
-      await addDoc(collection(db, "users"), {
-        uid: employeeId, // Use generated ID as uid
+      // Create a secondary app instance to avoid signing out the current admin
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+      
+      const { user: newAuthUser } = await createUserWithEmailAndPassword(secondaryAuth, employeeData.email, "123456789");
+      const employeeId = newAuthUser.uid;
+      
+      // Clean up the secondary app immediately
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+
+      // Create Firestore document with the real Auth UID
+      await setDoc(doc(db, "users", employeeId), {
+        uid: employeeId,
         fullName: employeeData.fullName,
         email: employeeData.email,
         department: employeeData.department || "",
@@ -370,7 +387,7 @@ export const firebaseHelpers = {
         role: employeeData.role || "employee",
         dateOfJoin: employeeData.dateOfJoin || "",
         createdAt: new Date().toISOString(),
-        authCreated: false // Flag to indicate Auth account not yet created
+        authCreated: true
       });
 
       return employeeId;
